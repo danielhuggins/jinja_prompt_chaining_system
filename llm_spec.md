@@ -11,7 +11,6 @@
 3. Let tag parameters be arbitrary Jinja expressions (no `with` keyword), where separators between `name=expr` pairs can be **spaces**, **commas**, or **both**.
 4. Default to streaming; allow `stream=false`.
 5. Log each API interaction in one valid YAML file (`<template>.log.yaml`) that mirrors the exact OpenAI request and non‑streamed response structures, with a growing `content` block and a `done: true` flag.
-6. Handle YAML‑breaking sequences (`---`, `...`) in streamed text by prefixing them with a space.
 
 ## 2. Project Structure
 
