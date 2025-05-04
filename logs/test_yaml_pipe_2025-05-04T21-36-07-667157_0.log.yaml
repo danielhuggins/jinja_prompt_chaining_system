@@ -1,0 +1,32 @@
+timestamp: '2025-05-04T21:36:07.669446+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 200
+  stream: true
+  messages:
+  - role: user
+    content: |2
+
+      Please write a short poem about rainbows with at least 3 stanzas.
+      Each stanza should be separated by a blank line.
+response:
+  id: chatcmpl-1485345263728
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: "In the sky, a vibrant arc does gleam,  \nColors woven from a sunlit\
+        \ dream,  \nRed and gold, in harmony they play,  \nDancing softly as the clouds\
+        \ drift away.  \n\nAfter rain, when the world is still,  \nNature's brush\
+        \ paints the air with thrill,  \nEmerald greens and azure blues,  \nWhisper\
+        \ secrets in the morning dew.  \n\nA bridge of hope, a promise so bright,\
+        \  \nUniting the earth with the heavens' light,  \nIn every hue, a tale to\
+        \ be spun,  \nRainbows remind us, we’re never undone.  "
+    finish_reason: stop
+  usage:
+    prompt_tokens: 29
+    completion_tokens: 119
+    total_tokens: 148
+  done: true

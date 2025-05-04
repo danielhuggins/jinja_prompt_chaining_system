@@ -1,0 +1,4 @@
+{% llmquery model="gpt-4o-mini" temperature=0.7 max_tokens=250 stream=true %}
+Write a detailed paragraph about {{ subject }} with multiple sentences.
+Then write a second paragraph that includes some line breaks and special characters like * & ^ % $ # @ !.
+{% endllmquery %} 

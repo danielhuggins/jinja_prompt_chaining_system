@@ -1,0 +1,4 @@
+{% llmquery model="gpt-4o-mini" temperature=0.7 max_tokens=200 stream=true %}
+Please write a short poem about {{ topic }} with at least 3 stanzas.
+Each stanza should be separated by a blank line.
+{% endllmquery %} 

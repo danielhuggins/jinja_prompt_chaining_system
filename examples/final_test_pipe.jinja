@@ -1,0 +1,12 @@
+{% llmquery model="gpt-4o-mini" temperature=0.7 max_tokens=300 stream=true %}
+Please write a short report on {{ topic }} with the following structure:
+
+1. Introduction (2-3 sentences)
+
+2. Key Facts (at least 3 bullet points)
+   * Point 1
+   * Point 2
+   * Point 3
+
+3. Conclusion (2-3 sentences)
+{% endllmquery %} 

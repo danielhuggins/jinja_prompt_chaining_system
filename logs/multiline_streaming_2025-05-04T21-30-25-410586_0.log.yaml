@@ -1,0 +1,45 @@
+timestamp: '2025-05-04T21:30:25.412199+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 250
+  stream: true
+  messages:
+  - role: user
+    content: '
+
+      Write a detailed paragraph about ocean ecosystems with multiple sentences.
+
+      Then write a second paragraph that includes some line breaks and special characters
+      like * & ^ % $ # @ !.
+
+      '
+response:
+  id: chatcmpl-1283132599280
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: "Ocean ecosystems are incredibly diverse and complex, hosting a vast\
+        \ array of life forms and habitats. They range from the sunlit surface waters\
+        \ teeming with phytoplankton to the mysterious depths of the abyssal zone,\
+        \ where unique organisms thrive under extreme conditions. Coral reefs, often\
+        \ referred to as the “rainforests of the sea,” support thousands of species\
+        \ and play a crucial role in maintaining marine biodiversity. Additionally,\
+        \ ocean ecosystems are vital for global climate regulation, as they absorb\
+        \ large amounts of carbon dioxide and produce significant quantities of oxygen.\
+        \ The intricate relationships between various species, from the tiniest plankton\
+        \ to the largest whales, create a delicate balance that is essential for the\
+        \ health of our planet. However, these ecosystems face numerous threats, including\
+        \ pollution, overfishing, and climate change, which jeopardize their stability\
+        \ and the livelihoods of millions who depend on them.\n\n*~*~*~*~*~*~*~*~*~*~*~*~*~*\
+        \  \nOcean ecosystems are under threat!  \n% Protect our coral reefs!  \n\
+        @ Biodiversity is key!  \n# Save our seas!  \n^ Together we can make a difference!\
+        \  \n$ Act now for a sustainable future!  \n*~*~"
+    finish_reason: stop
+  usage:
+    prompt_tokens: 45
+    completion_tokens: 294
+    total_tokens: 339
+  done: true

@@ -1,0 +1,32 @@
+timestamp: '2025-05-04T21:35:00.408800+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 200
+  stream: true
+  messages:
+  - role: user
+    content: |2
+
+      Please write a short poem about rainbows with at least 3 stanzas.
+      Each stanza should be separated by a blank line.
+response:
+  id: chatcmpl-2500240740144
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: "In the sky where whispers play,  \nColors dance in bright array, \
+        \ \nAfter storms have washed away,  \nNature’s brush begins to sway.  \n\n\
+        Arched like dreams in morning light,  \nCrimson, gold, and azure bright, \
+        \ \nHope unfurls in wondrous sight,  \nPromises of joy take flight.  \n\n\
+        Chasing clouds with laughter's gleam,  \nThey weave together every dream,\
+        \  \nA fleeting glimpse, a brilliant beam,  \nIn hearts, their magic finds\
+        \ a theme.  "
+    finish_reason: stop
+  usage:
+    prompt_tokens: 29
+    completion_tokens: 106
+    total_tokens: 135
+  done: true

@@ -4,16 +4,12 @@ import yaml
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
-class LiteralString(str):
-    """A string that will be representedasd as a literal block in YAML."""
-    pass
-
-def literal_string_representer(dumper, data):
-    """YAML representer for literal string."""
-    return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-
-# Register the literal string representer
-yaml.add_representer(LiteralString, literal_string_representer)
+class SafeLineBreakDumper(yaml.SafeDumper):
+    """A custom YAML dumper that uses the pipe (|) style for multiline strings."""
+    def represent_scalar(self, tag, value, style=None):
+        if isinstance(value, str) and '\n' in value:
+            style = '|'
+        return super().represent_scalar(tag, value, style)
 
 class LLMLogger:
     """Logger for LLM interactions that saves to YAML files."""
@@ -76,14 +72,6 @@ class LLMLogger:
         
         # Add response if provided (non-streaming case)
         if response:
-            # Make sure content fields use literal string format
-            if "choices" in response and len(response["choices"]) > 0:
-                if "message" in response["choices"][0]:
-                    if "content" in response["choices"][0]["message"]:
-                        content = response["choices"][0]["message"]["content"]
-                        if content:
-                            response["choices"][0]["message"]["content"] = LiteralString(content)
-            
             log_data["response"] = response
         # Initialize response structure for streaming
         elif request.get("stream", True):
@@ -93,9 +81,9 @@ class LLMLogger:
             # Keep track of this log for streaming updates
             self.active_requests[template_name] = log_path
         
-        # Write to file
-        with open(log_path, 'w') as f:
-            yaml.dump(log_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        # Write to file using our custom dumper
+        with open(log_path, 'w', encoding='utf-8') as f:
+            yaml.dump(log_data, f, Dumper=SafeLineBreakDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
         
         # Track logs for this template
         if template_name not in self.template_logs:
@@ -119,7 +107,7 @@ class LLMLogger:
             return
         
         # Read the current log
-        with open(log_path, 'r') as f:
+        with open(log_path, 'r', encoding='utf-8') as f:
             try:
                 log_data = yaml.safe_load(f) or {}
             except yaml.YAMLError:
@@ -138,9 +126,9 @@ class LLMLogger:
         # Update the buffer with the new chunk
         log_data["response"]["_content_buffer"] += response_chunk
         
-        # Write back to file
-        with open(log_path, 'w') as f:
-            yaml.dump(log_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        # Write back to file using our custom dumper
+        with open(log_path, 'w', encoding='utf-8') as f:
+            yaml.dump(log_data, f, Dumper=SafeLineBreakDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
             
     def complete_response(
         self,
@@ -161,7 +149,7 @@ class LLMLogger:
             return
         
         # Read the current log
-        with open(log_path, 'r') as f:
+        with open(log_path, 'r', encoding='utf-8') as f:
             try:
                 log_data = yaml.safe_load(f) or {}
             except yaml.YAMLError:
@@ -187,7 +175,7 @@ class LLMLogger:
                     # Don't overwrite content if it's explicitly None (e.g., for tool calls)
                     pass
                 else:
-                    response["choices"][0]["message"]["content"] = LiteralString(content)
+                    response["choices"][0]["message"]["content"] = content
         
         # Add the done flag
         response["done"] = True
@@ -203,9 +191,9 @@ class LLMLogger:
         if "_content_buffer" in log_data["response"]:
             del log_data["response"]["_content_buffer"]
         
-        # Write back to file
-        with open(log_path, 'w') as f:
-            yaml.dump(log_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-        
+        # Write back to file using our custom dumper
+        with open(log_path, 'w', encoding='utf-8') as f:
+            yaml.dump(log_data, f, Dumper=SafeLineBreakDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            
         # Clean up the active request
         del self.active_requests[template_name] 
