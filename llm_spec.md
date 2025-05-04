@@ -1,20 +1,17 @@
----
+# Jinja Prompt Chaining System Specification
 
 ## 1. Objectives
 
 1. Provide a simple Jinja‑based prompt‑chaining engine with an `{% llmquery … %}` / `{% endllmquery %}` tag.
 2. Expose a single CLI (`jinja-run`) that takes:
-
-   * **template** path (`.jinja`),
-   * **context** YAML (`--context ctx.yaml`),
-   * optional **output** path (`--out out.txt`),
-   * optional **log directory** (`--logdir logs/`).
+   * **template** path (`.jinja`)
+   * **context** YAML (`--context ctx.yaml`)
+   * optional **output** path (`--out out.txt`)
+   * optional **log directory** (`--logdir logs/`)
 3. Let tag parameters be arbitrary Jinja expressions (no `with` keyword), where separators between `name=expr` pairs can be **spaces**, **commas**, or **both**.
 4. Default to streaming; allow `stream=false`.
 5. Log each API interaction in one valid YAML file (`<template>.log.yaml`) that mirrors the exact OpenAI request and non‑streamed response structures, with a growing `content` block and a `done: true` flag.
 6. Handle YAML‑breaking sequences (`---`, `...`) in streamed text by prefixing them with a space.
-
----
 
 ## 2. Project Structure
 
@@ -35,8 +32,6 @@ jinja_prompt_chaining_system/        ← Git repo & distribution name
 └─ README.md
 ```
 
----
-
 ## 3. CLI Usage
 
 ```bash
@@ -45,8 +40,6 @@ jinja-run path/to/template.jinja \
   [--out out.txt] \
   [--logdir logs/]
 ```
-
----
 
 ## 4. `{% llmquery %}` Tag Semantics
 
@@ -60,9 +53,9 @@ jinja-run path/to/template.jinja \
 {% endllmquery %}
 ```
 
-* **Parameters**: one or more `name=expr` pairs.  Separators between pairs can be **spaces**, **commas**, or **both**.
+* **Parameters**: one or more `name=expr` pairs. Separators between pairs can be **spaces**, **commas**, or **both**.
 * **Values**: any valid Jinja expression (literals, variables, filters, etc.).
-* **Body**: the single “user” message sent to the LLM.
+* **Body**: the single "user" message sent to the LLM.
 
 ### 4.2. Examples
 
@@ -93,8 +86,6 @@ Summarise the plot of Hamlet.
 ```
 
 *Line breaks* are allowed between parameters without special escapes.
-
----
 
 ## 5. Logging Format
 
@@ -136,26 +127,22 @@ response:
   done: true
 ```
 
----
-
 ## 6. Testing
 
 * **Unit tests** with `pytest`.
-* **CLI end-to-end tests** that invoke
+* **CLI end-to-end tests** that invoke:
 
-  ```bash
-  python -m jinja_prompt_chaining_system.cli <template.jinja> --context ctx.yaml --out out.txt --logdir logs/
-  ```
+```bash
+python -m jinja_prompt_chaining_system.cli <template.jinja> --context ctx.yaml --out out.txt --logdir logs/
+```
 
-  and verify both output and `<template>.log.yaml`.
+and verify both output and `<template>.log.yaml`.
 
 Run all tests with:
 
 ```bash
 pytest -n auto
 ```
-
----
 
 ## 7. Release
 
