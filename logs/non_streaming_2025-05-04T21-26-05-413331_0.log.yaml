@@ -1,0 +1,27 @@
+timestamp: '2025-05-04T21:26:05.415402+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.5
+  max_tokens: 100
+  stream: false
+  messages:
+  - role: user
+    content: '
+
+      Please summarize the concept of artificial intelligence in exactly two sentences.
+
+      '
+response:
+  id: chatcmpl-2833100662320
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: |-
+        Artificial intelligence (AI) refers to the simulation of human intelligence processes by machines, particularly computer systems, enabling them to perform tasks such as learning, reasoning, and problem-solving. AI encompasses various subfields, including machine learning, natural language processing, and robotics, and is increasingly integrated into everyday applications and industries.
+    finish_reason: stop
+  usage:
+    prompt_tokens: 20
+    completion_tokens: 97
+    total_tokens: 118

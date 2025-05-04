@@ -4,6 +4,17 @@ import yaml
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
+class LiteralString(str):
+    """A string that will be representedasd as a literal block in YAML."""
+    pass
+
+def literal_string_representer(dumper, data):
+    """YAML representer for literal string."""
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+
+# Register the literal string representer
+yaml.add_representer(LiteralString, literal_string_representer)
+
 class LLMLogger:
     """Logger for LLM interactions that saves to YAML files."""
     
@@ -65,11 +76,18 @@ class LLMLogger:
         
         # Add response if provided (non-streaming case)
         if response:
+            # Make sure content fields use literal string format
+            if "choices" in response and len(response["choices"]) > 0:
+                if "message" in response["choices"][0]:
+                    if "content" in response["choices"][0]["message"]:
+                        content = response["choices"][0]["message"]["content"]
+                        if content:
+                            response["choices"][0]["message"]["content"] = LiteralString(content)
+            
             log_data["response"] = response
         # Initialize response structure for streaming
         elif request.get("stream", True):
             log_data["response"] = {
-                "content": "",
                 "done": False
             }
             # Keep track of this log for streaming updates
@@ -110,12 +128,15 @@ class LLMLogger:
         # Make sure we have a response structure
         if "response" not in log_data:
             log_data["response"] = {
-                "content": "",
                 "done": False
             }
         
-        # Update the content with the new chunk
-        log_data["response"]["content"] += response_chunk
+        # Initialize a temporary content buffer if it doesn't exist
+        if "_content_buffer" not in log_data["response"]:
+            log_data["response"]["_content_buffer"] = ""
+        
+        # Update the buffer with the new chunk
+        log_data["response"]["_content_buffer"] += response_chunk
         
         # Write back to file
         with open(log_path, 'w') as f:
@@ -149,18 +170,15 @@ class LLMLogger:
         # Make sure we have a response structure
         if "response" not in log_data:
             log_data["response"] = {
-                "content": "",
+                "_content_buffer": "",
                 "done": False
             }
         
-        # Get the accumulated content
-        content = log_data["response"].get("content", "")
+        # Get the accumulated content from the buffer
+        content = log_data["response"].get("_content_buffer", "")
         
         # Update with the completion data (maintaining OpenAI API response format)
         response = completion_data.copy()
-        
-        # Preserve the content field directly in response
-        response["content"] = content
         
         # Update the content in choices[0].message.content if it exists
         if "choices" in response and len(response["choices"]) > 0:
@@ -169,13 +187,21 @@ class LLMLogger:
                     # Don't overwrite content if it's explicitly None (e.g., for tool calls)
                     pass
                 else:
-                    response["choices"][0]["message"]["content"] = content
+                    response["choices"][0]["message"]["content"] = LiteralString(content)
         
         # Add the done flag
         response["done"] = True
         
+        # Remove any existing content field at the root level
+        if "content" in response:
+            del response["content"]
+        
         # Replace the response in the log data
         log_data["response"] = response
+        
+        # Remove the temporary buffer
+        if "_content_buffer" in log_data["response"]:
+            del log_data["response"]["_content_buffer"]
         
         # Write back to file
         with open(log_path, 'w') as f:

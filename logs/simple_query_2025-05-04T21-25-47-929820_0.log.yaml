@@ -1,0 +1,33 @@
+timestamp: '2025-05-04T21:25:47.935824+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 150
+  stream: true
+  messages:
+  - role: user
+    content: '
+
+      Hello! Please write a short poem about autumn leaves.
+
+      '
+response:
+  id: chatcmpl-1831979643984
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: "In whispered winds, the leaves take flight,  \nA tapestry of gold\
+        \ and red,  \nThey dance beneath the fading light,  \nAs summer's warmth begins\
+        \ to shed.  \n\nEach rustling sound, a gentle sigh,  \nAs trees adorn their\
+        \ autumn dress,  \nThe branches bare, the ground awry,  \nIn nature's pause,\
+        \ a sweet caress.  \n\nThey swirl and twirl, a fleeting grace,  \nA carpet\
+        \ soft, where footsteps roam,  \nIn every swirl, a memory's trace,  \nAs autumn\
+        \ bids the world to home.  "
+    finish_reason: stop
+  usage:
+    prompt_tokens: 13
+    completion_tokens: 114
+    total_tokens: 127
+  done: true
