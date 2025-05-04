@@ -6,7 +6,7 @@ request:
   stream: true
   messages:
   - role: user
-    content: |2
+    content: |2-
 
       Please write a short report on electric vehicles with the following structure:
 
