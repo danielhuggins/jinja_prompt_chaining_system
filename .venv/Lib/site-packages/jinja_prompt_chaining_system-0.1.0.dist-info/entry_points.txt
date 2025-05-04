@@ -1,0 +1,2 @@
+[console_scripts]
+jinja-run = jinja_prompt_chaining_system.cli:main

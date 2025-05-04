@@ -1,0 +1,88 @@
+Metadata-Version: 2.4
+Name: jinja_prompt_chaining_system
+Version: 0.1.0
+Summary: A Jinja-based prompt chaining system for LLM interactions
+Home-page: https://github.com/yourusername/jinja_prompt_chaining_system
+Author: Your Name
+Author-email: Your Name <your.email@example.com>
+License: MIT
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: jinja2>=3.0.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: openai>=1.0.0
+Requires-Dist: click>=8.0.0
+
+# Jinja Prompt Chaining System
+
+A simple Jinja-based prompt chaining engine for LLM interactions.
+
+## Features
+
+- Custom Jinja tag `{% llmquery %}` for LLM interactions
+- Simple CLI interface
+- YAML-based context and logging
+- Support for streaming and non-streaming responses
+- Flexible parameter syntax
+
+## Installation
+
+```bash
+pip install jinja-prompt-chaining-system
+```
+
+## Usage
+
+### Basic Usage
+
+```bash
+jinja-run template.jinja --context context.yaml
+```
+
+### With Output File
+
+```bash
+jinja-run template.jinja --context context.yaml --out output.txt
+```
+
+### With Logging
+
+```bash
+jinja-run template.jinja --context context.yaml --logdir logs/
+```
+
+### Template Example
+
+```jinja
+{% llmquery model="gpt-4" temperature=0.7 %}
+Summarise the plot of {{ book }}.
+{% endllmquery %}
+```
+
+## Development
+
+### Setup
+
+1. Clone the repository
+2. Install development dependencies:
+   ```bash
+   pip install -e ".[dev]"
+   ```
+
+### Running Tests
+
+```bash
+pytest -n auto
+```
+
+## License
+
+MIT License 
