@@ -1,0 +1,20 @@
+{% if advanced_mode %}
+{% set temp = 0.9 %}
+{% else %}
+{% set temp = 0.5 %}
+{% endif %}
+
+{% llmquery model="gpt-4o-mini" temperature=temp max_tokens=200 %}
+I want information about the following topics:
+{% for item in topics %}
+- {{ item }}
+{% endfor %}
+
+{% if format == "bullet_points" %}
+Please format your response as bullet points.
+{% elif format == "paragraphs" %}
+Please format your response as short paragraphs.
+{% else %}
+Please provide a concise response.
+{% endif %}
+{% endllmquery %} 

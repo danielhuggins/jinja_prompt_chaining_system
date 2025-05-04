@@ -1,0 +1,5 @@
+{% llmquery 
+   model="gpt-4o-mini", temperature=0.7 max_tokens=150, stream=false
+%}
+List {{ count }} interesting facts about {{ subject }}.
+{% endllmquery %} 

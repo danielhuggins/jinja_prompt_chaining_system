@@ -1,0 +1,42 @@
+timestamp: '2025-05-04T20:55:54.190748+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 150
+  stream: false
+  messages:
+  - role: user
+    content: '
+
+      List 3 interesting facts about dinosaurs.
+
+      '
+response:
+  id: chatcmpl-1320183919696
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: 'Sure! Here are three interesting facts about dinosaurs:
+
+
+        1. **Diverse Sizes and Types**: Dinosaurs came in a wide range of sizes and
+        types, from the small, chicken-sized Compsognathus to the enormous Argentinosaurus,
+        which could weigh up to 100 tons and measure over 100 feet long. This diversity
+        allowed them to inhabit various ecological niches.
+
+
+        2. **Birds Are Modern Dinosaurs**: Birds are considered the only living descendants
+        of theropod dinosaurs, making them part of the dinosaur lineage. This means
+        that, in a sense, dinosaurs are not entirely extinct; they have evolved into
+        avian forms that we see today.
+
+
+        3. **Social Behavior**: Some dinosaur species exhibited social behavior, living
+        in'
+    finish_reason: stop
+  usage:
+    prompt_tokens: 10
+    completion_tokens: 175
+    total_tokens: 185

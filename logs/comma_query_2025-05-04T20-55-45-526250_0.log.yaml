@@ -1,0 +1,46 @@
+timestamp: '2025-05-04T20:55:45.527618+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 150
+  stream: true
+  messages:
+  - role: user
+    content: '
+
+      Please provide a brief explanation of quantum computing in simple terms.
+
+      '
+response:
+  id: chatcmpl-1900394030640
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: "Quantum computing is a type of computing that uses the principles\
+        \ of quantum mechanics, which is the science that explains how very small\
+        \ particles, like atoms and photons, behave. \n\nIn simple terms, while traditional\
+        \ computers use bits as the smallest unit of data (which can be either a 0\
+        \ or a 1), quantum computers use quantum bits, or qubits. Qubits can be both\
+        \ 0 and 1 at the same time, thanks to a property called superposition. This\
+        \ allows quantum computers to process a vast amount of information simultaneously.\n\
+        \nAdditionally, qubits can be entangled, meaning the state of one qubit can\
+        \ depend on the state of another, even if they are far apart. This interconnectedness\
+        \ can lead to faster problem-solving for"
+    finish_reason: stop
+  usage:
+    prompt_tokens: 18
+    completion_tokens: 179
+    total_tokens: 198
+  content: "Quantum computing is a type of computing that uses the principles of quantum\
+    \ mechanics, which is the science that explains how very small particles, like\
+    \ atoms and photons, behave. \n\nIn simple terms, while traditional computers\
+    \ use bits as the smallest unit of data (which can be either a 0 or a 1), quantum\
+    \ computers use quantum bits, or qubits. Qubits can be both 0 and 1 at the same\
+    \ time, thanks to a property called superposition. This allows quantum computers\
+    \ to process a vast amount of information simultaneously.\n\nAdditionally, qubits\
+    \ can be entangled, meaning the state of one qubit can depend on the state of\
+    \ another, even if they are far apart. This interconnectedness can lead to faster\
+    \ problem-solving for"
+  done: true

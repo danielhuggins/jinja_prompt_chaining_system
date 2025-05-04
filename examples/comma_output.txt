@@ -1,0 +1,5 @@
+Quantum computing is a type of computing that uses the principles of quantum mechanics, which is the science that explains how very small particles, like atoms and photons, behave. 
+
+In simple terms, while traditional computers use bits as the smallest unit of data (which can be either a 0 or a 1), quantum computers use quantum bits, or qubits. Qubits can be both 0 and 1 at the same time, thanks to a property called superposition. This allows quantum computers to process a vast amount of information simultaneously.
+
+Additionally, qubits can be entangled, meaning the state of one qubit can depend on the state of another, even if they are far apart. This interconnectedness can lead to faster problem-solving for 

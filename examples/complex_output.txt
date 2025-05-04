@@ -1,0 +1,20 @@
+
+
+
+
+### Renewable Energy
+- **Definition**: Energy derived from natural processes that are replenished constantly, such as sunlight, wind, rain, tides, waves, and geothermal heat.
+- **Types**:
+  - **Solar Energy**: Harnessing sunlight via photovoltaic cells or solar thermal systems.
+  - **Wind Energy**: Using wind turbines to convert wind kinetic energy into electricity.
+  - **Hydropower**: Generating electricity from the movement of water in rivers and reservoirs.
+  - **Biomass**: Organic materials converted into energy through combustion or biochemical processes.
+  - **Geothermal Energy**: Utilizing heat from beneath the Earth's surface for power generation and direct heating.
+- **Benefits**:
+  - Reduces greenhouse gas emissions.
+  - Decreases reliance on fossil fuels.
+  - Provides energy security and job creation in new industries.
+- **Challenges**:
+  - Intermittency of energy sources like solar and wind.
+  - Initial high costs for infrastructure development.
+ 

@@ -1,0 +1,40 @@
+timestamp: '2025-05-04T20:55:29.023752+00:00'
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 150
+  stream: true
+  messages:
+  - role: user
+    content: '
+
+      Hello! Please write a short poem about autumn leaves.
+
+      '
+response:
+  id: chatcmpl-3158863508656
+  model: gpt-4o-mini
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: "In whispered winds, the leaves take flight,  \nA tapestry of gold\
+        \ and rust,  \nThey dance and twirl in fading light,  \nA gentle waltz, as\
+        \ all things must.  \n\nCrisp beneath our wandering feet,  \nThey paint the\
+        \ ground in hues so bold,  \nA fleeting beauty, bittersweet,  \nAs summer's\
+        \ warmth gives way to cold.  \n\nWith every swirl, a story spun,  \nOf days\
+        \ gone by, of time's embrace,  \nIn autumn's breath, we find the sun,  \n\
+        And cherish each leaf's soft, fleeting grace."
+    finish_reason: stop
+  usage:
+    prompt_tokens: 13
+    completion_tokens: 116
+    total_tokens: 129
+  content: "In whispered winds, the leaves take flight,  \nA tapestry of gold and\
+    \ rust,  \nThey dance and twirl in fading light,  \nA gentle waltz, as all things\
+    \ must.  \n\nCrisp beneath our wandering feet,  \nThey paint the ground in hues\
+    \ so bold,  \nA fleeting beauty, bittersweet,  \nAs summer's warmth gives way\
+    \ to cold.  \n\nWith every swirl, a story spun,  \nOf days gone by, of time's\
+    \ embrace,  \nIn autumn's breath, we find the sun,  \nAnd cherish each leaf's\
+    \ soft, fleeting grace."
+  done: true
