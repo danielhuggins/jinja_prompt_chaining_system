@@ -108,14 +108,15 @@ class LLMQueryExtension(Extension):
             if key not in request and key != "stream":
                 request[key] = value
         
-        # Log the request
-        if self.template_name:
-            self.logger.log_request(self.template_name, request)
-        
         # Get response from LLM
         stream = params.get("stream", True)
         try:
             if stream:
+                # Log the initial request before streaming
+                if self.template_name:
+                    log_path = self.logger.log_request(self.template_name, request)
+                
+                # Get streaming response
                 result = []
                 for chunk in self.llm_client.query(prompt, params, stream=True):
                     result.append(chunk)
@@ -124,15 +125,59 @@ class LLMQueryExtension(Extension):
                 
                 # Join the chunks and return
                 response_text = "".join(result)
+                
+                # Complete the response with final metadata
+                if self.template_name:
+                    # Create a response object that mirrors OpenAI's format
+                    completion_data = {
+                        "id": f"chatcmpl-{id(prompt)}",  # Generate a unique ID
+                        "model": request["model"],
+                        "choices": [
+                            {
+                                "index": 0,
+                                "message": {
+                                    "role": "assistant",
+                                    "content": response_text
+                                },
+                                "finish_reason": "stop"
+                            }
+                        ],
+                        "usage": {
+                            "prompt_tokens": len(prompt) // 4,  # Rough estimation
+                            "completion_tokens": len(response_text) // 4,
+                            "total_tokens": (len(prompt) + len(response_text)) // 4
+                        }
+                    }
+                    self.logger.complete_response(self.template_name, completion_data)
+                
                 return response_text
             else:
+                # Non-streaming: Get the complete response at once
                 response = self.llm_client.query(prompt, params, stream=False)
+                
                 if self.template_name:
-                    self.logger.log_request(
-                        self.template_name,
-                        request,
-                        {"content": response, "done": True}
-                    )
+                    # Create a response object that mirrors OpenAI's format
+                    completion_data = {
+                        "id": f"chatcmpl-{id(prompt)}",
+                        "model": request["model"],
+                        "choices": [
+                            {
+                                "index": 0,
+                                "message": {
+                                    "role": "assistant",
+                                    "content": response
+                                },
+                                "finish_reason": "stop"
+                            }
+                        ],
+                        "usage": {
+                            "prompt_tokens": len(prompt) // 4,
+                            "completion_tokens": len(response) // 4,
+                            "total_tokens": (len(prompt) + len(response)) // 4
+                        }
+                    }
+                    self.logger.log_request(self.template_name, request, completion_data)
+                
                 return response
         except Exception as e:
             raise RuntimeError(f"LLM query error: {str(e)}")
@@ -162,30 +207,78 @@ class LLMQueryExtension(Extension):
                 if key not in request and key != "stream":
                     request[key] = value
             
-            # Log the request
-            if self.template_name:
-                self.logger.log_request(self.template_name, request)
-            
             # Get response from LLM
             stream = params.get("stream", True)
-            if stream:
-                result = []
-                for chunk in self.llm_client.query(prompt, params, stream=True):
-                    result.append(chunk)
+            try:
+                if stream:
+                    # Log the initial request before streaming
                     if self.template_name:
-                        self.logger.update_response(self.template_name, chunk)
-                
-                # Join the chunks and return
-                response_text = "".join(result)
-                return response_text
-            else:
-                response = self.llm_client.query(prompt, params, stream=False)
-                if self.template_name:
-                    self.logger.log_request(
-                        self.template_name,
-                        request,
-                        {"content": response, "done": True}
-                    )
-                return response
+                        log_path = self.logger.log_request(self.template_name, request)
+                    
+                    # Get streaming response
+                    result = []
+                    for chunk in self.llm_client.query(prompt, params, stream=True):
+                        result.append(chunk)
+                        if self.template_name:
+                            self.logger.update_response(self.template_name, chunk)
+                    
+                    # Join the chunks and return
+                    response_text = "".join(result)
+                    
+                    # Complete the response with final metadata
+                    if self.template_name:
+                        # Create a response object that mirrors OpenAI's format
+                        completion_data = {
+                            "id": f"chatcmpl-{id(prompt)}",  # Generate a unique ID
+                            "model": request["model"],
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": response_text
+                                    },
+                                    "finish_reason": "stop"
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": len(prompt) // 4,  # Rough estimation
+                                "completion_tokens": len(response_text) // 4,
+                                "total_tokens": (len(prompt) + len(response_text)) // 4
+                            }
+                        }
+                        self.logger.complete_response(self.template_name, completion_data)
+                    
+                    return response_text
+                else:
+                    # Non-streaming: Get the complete response at once
+                    response = self.llm_client.query(prompt, params, stream=False)
+                    
+                    if self.template_name:
+                        # Create a response object that mirrors OpenAI's format
+                        completion_data = {
+                            "id": f"chatcmpl-{id(prompt)}",
+                            "model": request["model"],
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": response
+                                    },
+                                    "finish_reason": "stop"
+                                }
+                            ],
+                            "usage": {
+                                "prompt_tokens": len(prompt) // 4,
+                                "completion_tokens": len(response) // 4,
+                                "total_tokens": (len(prompt) + len(response)) // 4
+                            }
+                        }
+                        self.logger.log_request(self.template_name, request, completion_data)
+                    
+                    return response
+            except Exception as e:
+                raise RuntimeError(f"LLM query error: {str(e)}")
         except Exception as e:
             raise RuntimeError(f"LLM query error: {str(e)}") 

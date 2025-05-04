@@ -10,7 +10,10 @@
    * optional **log directory** (`--logdir logs/`)
 3. Let tag parameters be arbitrary Jinja expressions (no `with` keyword), where separators between `name=expr` pairs can be **spaces**, **commas**, or **both**.
 4. Default to streaming; allow `stream=false`.
-5. Log each API interaction in one valid YAML file (`<template>.log.yaml`) that mirrors the exact OpenAI request and non‑streamed response structures, with a growing `content` block and a `done: true` flag.
+5. Log each API interaction in a log file named `<template>_<timestamp>.log.yaml` within the log directory that exactly mirrors the OpenAI request and response structures:
+   * For non-streaming requests: Dump the exact OpenAI request and response
+   * For streaming requests: Dump the exact request and reconstruct the full response from streamed chunks
+   * Include a `done: true` flag to indicate when streaming is complete
 
 ## 2. Project Structure
 
@@ -135,7 +138,7 @@ response:
 python -m jinja_prompt_chaining_system.cli <template.jinja> --context ctx.yaml --out out.txt --logdir logs/
 ```
 
-and verify both output and `<template>.log.yaml`.
+and verify both output and `<template>_<timestamp>.log.yaml`.
 
 Run all tests with:
 
