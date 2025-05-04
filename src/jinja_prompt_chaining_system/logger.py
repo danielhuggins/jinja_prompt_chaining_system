@@ -1,4 +1,5 @@
 import os
+import time
 import yaml
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
@@ -16,14 +17,29 @@ class LLMLogger:
         self.active_requests = {}
         # For each template, track the current log files to support multiple requests
         self.template_logs = {}
+        # Counter for unique filenames
+        self.log_counters = {}
     
     def _generate_log_path(self, template_name: str) -> Optional[str]:
-        """Generate a log file path with timestamp."""
+        """Generate a log file path with timestamp and counter to ensure uniqueness."""
         if not self.log_dir:
             return None
         
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
-        filename = f"{template_name}_{timestamp}.log.yaml"
+        # Get timestamp with microsecond precision
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S-%f")
+        
+        # Add a counter to ensure uniqueness even for extremely close calls
+        if template_name not in self.log_counters:
+            self.log_counters[template_name] = 0
+        
+        counter = self.log_counters[template_name]
+        self.log_counters[template_name] += 1
+        
+        # Sleep a tiny bit to ensure different timestamp when test runs are extremely fast
+        time.sleep(0.001)
+        
+        # Include counter in filename to ensure uniqueness
+        filename = f"{template_name}_{timestamp}_{counter}.log.yaml"
         return os.path.join(self.log_dir, filename)
     
     def log_request(

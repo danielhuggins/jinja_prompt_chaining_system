@@ -5,6 +5,7 @@ from jinja2.parser import Parser
 from typing import Dict, Any, Optional
 import os
 import asyncio
+import inspect
 
 from .llm import LLMClient
 from .logger import LLMLogger
@@ -94,6 +95,9 @@ class LLMQueryExtension(Extension):
         # Get the prompt from the template body
         prompt = await caller()
         
+        # Prompt is now a string, not a coroutine
+        prompt_length = len(prompt)
+        
         # Prepare request for logging
         request = {
             "model": params.get("model", "gpt-3.5-turbo"),
@@ -125,6 +129,7 @@ class LLMQueryExtension(Extension):
                 
                 # Join the chunks and return
                 response_text = "".join(result)
+                response_length = len(response_text)
                 
                 # Complete the response with final metadata
                 if self.template_name:
@@ -143,9 +148,9 @@ class LLMQueryExtension(Extension):
                             }
                         ],
                         "usage": {
-                            "prompt_tokens": len(prompt) // 4,  # Rough estimation
-                            "completion_tokens": len(response_text) // 4,
-                            "total_tokens": (len(prompt) + len(response_text)) // 4
+                            "prompt_tokens": prompt_length // 4,  # Rough estimation
+                            "completion_tokens": response_length // 4,
+                            "total_tokens": (prompt_length + response_length) // 4
                         }
                     }
                     self.logger.complete_response(self.template_name, completion_data)
@@ -154,6 +159,7 @@ class LLMQueryExtension(Extension):
             else:
                 # Non-streaming: Get the complete response at once
                 response = self.llm_client.query(prompt, params, stream=False)
+                response_length = len(response)
                 
                 if self.template_name:
                     # Create a response object that mirrors OpenAI's format
@@ -171,9 +177,9 @@ class LLMQueryExtension(Extension):
                             }
                         ],
                         "usage": {
-                            "prompt_tokens": len(prompt) // 4,
-                            "completion_tokens": len(response) // 4,
-                            "total_tokens": (len(prompt) + len(response)) // 4
+                            "prompt_tokens": prompt_length // 4,
+                            "completion_tokens": response_length // 4,
+                            "total_tokens": (prompt_length + response_length) // 4
                         }
                     }
                     self.logger.log_request(self.template_name, request, completion_data)
@@ -186,12 +192,20 @@ class LLMQueryExtension(Extension):
         """Process the llmquery tag and return the result."""
         try:
             # Check if we're in async mode
-            if asyncio.iscoroutinefunction(caller):
+            if asyncio.iscoroutinefunction(caller) or inspect.iscoroutine(caller):
                 # We need to await this - Jinja will handle this correctly in async mode
                 return self._llmquery_async(params, caller)
             
             # Synchronous mode
             prompt = caller()
+            
+            # Check if prompt is a coroutine (this can happen in certain Jinja2 contexts)
+            if inspect.iscoroutine(prompt):
+                # We need to return the coroutine for Jinja to await it
+                return self._llmquery_async(params, lambda: prompt)
+            
+            # Prompt is a string in sync mode
+            prompt_length = len(prompt)
             
             # Prepare request for logging
             request = {
@@ -224,6 +238,7 @@ class LLMQueryExtension(Extension):
                     
                     # Join the chunks and return
                     response_text = "".join(result)
+                    response_length = len(response_text)
                     
                     # Complete the response with final metadata
                     if self.template_name:
@@ -242,9 +257,9 @@ class LLMQueryExtension(Extension):
                                 }
                             ],
                             "usage": {
-                                "prompt_tokens": len(prompt) // 4,  # Rough estimation
-                                "completion_tokens": len(response_text) // 4,
-                                "total_tokens": (len(prompt) + len(response_text)) // 4
+                                "prompt_tokens": prompt_length // 4,  # Rough estimation
+                                "completion_tokens": response_length // 4,
+                                "total_tokens": (prompt_length + response_length) // 4
                             }
                         }
                         self.logger.complete_response(self.template_name, completion_data)
@@ -253,6 +268,7 @@ class LLMQueryExtension(Extension):
                 else:
                     # Non-streaming: Get the complete response at once
                     response = self.llm_client.query(prompt, params, stream=False)
+                    response_length = len(response)
                     
                     if self.template_name:
                         # Create a response object that mirrors OpenAI's format
@@ -270,9 +286,9 @@ class LLMQueryExtension(Extension):
                                 }
                             ],
                             "usage": {
-                                "prompt_tokens": len(prompt) // 4,
-                                "completion_tokens": len(response) // 4,
-                                "total_tokens": (len(prompt) + len(response)) // 4
+                                "prompt_tokens": prompt_length // 4,
+                                "completion_tokens": response_length // 4,
+                                "total_tokens": (prompt_length + response_length) // 4
                             }
                         }
                         self.logger.log_request(self.template_name, request, completion_data)
