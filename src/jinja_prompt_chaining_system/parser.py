@@ -118,9 +118,6 @@ class LLMQueryExtension(Extension):
             if stream:
                 result = []
                 for chunk in self.llm_client.query(prompt, params, stream=True):
-                    # Handle YAML-breaking sequences
-                    if chunk.startswith(("---", "...")):
-                        chunk = " " + chunk
                     result.append(chunk)
                     if self.template_name:
                         self.logger.update_response(self.template_name, chunk)
@@ -174,9 +171,6 @@ class LLMQueryExtension(Extension):
             if stream:
                 result = []
                 for chunk in self.llm_client.query(prompt, params, stream=True):
-                    # Handle YAML-breaking sequences
-                    if chunk.startswith(("---", "...")):
-                        chunk = " " + chunk
                     result.append(chunk)
                     if self.template_name:
                         self.logger.update_response(self.template_name, chunk)

@@ -1,6 +1,5 @@
 import os
 import yaml
-import re
 from typing import Dict, Any, Optional
 from datetime import datetime, UTC
 
@@ -81,13 +80,7 @@ class LLMLogger:
                 "done": False
             }
         
-        # Handle YAML-breaking sequences
-        chunk = response_chunk
-        
-        # Add a space before any YAML document markers at start of lines
-        chunk = re.sub(r'(\n|^)(---|\.\.\.)(\n|$)', r'\1 \2\3', chunk)
-        
-        latest_entry["response"]["content"] += chunk
+        latest_entry["response"]["content"] += response_chunk
         
         with open(log_path, 'w') as f:
             yaml.dump(log_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)

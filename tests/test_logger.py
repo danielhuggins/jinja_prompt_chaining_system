@@ -89,32 +89,6 @@ def test_update_response(logger, log_dir):
     assert log_data[0]["response"]["content"] == "Hello, world!"
     assert not log_data[0]["response"]["done"]
 
-def test_yaml_breaking_sequences(logger, log_dir):
-    """Test handling of YAML-breaking sequences in response chunks."""
-    template_name = "test"
-    request = {
-        "model": "gpt-4",
-        "temperature": 0.7,
-        "messages": [{"role": "user", "content": "Hello"}]
-    }
-    
-    # Log initial request
-    logger.log_request(template_name, request)
-    
-    # Update with YAML-breaking sequences
-    chunks = ["---", "...", "---"]
-    for chunk in chunks:
-        logger.update_response(template_name, chunk)
-    
-    log_file = log_dir / f"{template_name}.log.yaml"
-    assert log_file.exists()
-    
-    with open(log_file) as f:
-        log_data = yaml.safe_load(f)
-    
-    assert len(log_data) == 1
-    assert log_data[0]["response"]["content"] == " --- ... ---"
-
 def test_multiple_requests_same_template(logger, log_dir):
     """Test logging multiple requests for the same template."""
     template_name = "test"
@@ -204,45 +178,6 @@ def test_complete_streaming_response(logger, log_dir):
     assert "id" in log_data[0]["response"]
     assert "usage" in log_data[0]["response"]
     assert log_data[0]["response"]["usage"]["total_tokens"] == 14
-
-def test_complex_yaml_breaking_sequences(logger, log_dir):
-    """Test handling of more complex YAML-breaking sequences in response chunks."""
-    template_name = "test"
-    request = {
-        "model": "gpt-4",
-        "temperature": 0.7,
-        "messages": [{"role": "user", "content": "Hello"}]
-    }
-    
-    # Log initial request
-    logger.log_request(template_name, request)
-    
-    # Update with more complex YAML-breaking sequences
-    chunks = [
-        "Normal text",
-        "\n---\n",  # YAML document separator
-        "code block:\n```yaml\n---\nkey: value\n...\n```",  # YAML inside code block
-        "\n...\n",  # YAML document end
-        "More text with --- and ... inline"
-    ]
-    for chunk in chunks:
-        logger.update_response(template_name, chunk)
-    
-    log_file = log_dir / f"{template_name}.log.yaml"
-    assert log_file.exists()
-    
-    # Verify the file can be loaded as valid YAML
-    with open(log_file) as f:
-        log_data = yaml.safe_load(f)
-    
-    assert len(log_data) == 1
-    # Verify all content is preserved with appropriate prefixing
-    full_content = log_data[0]["response"]["content"]
-    assert "Normal text" in full_content
-    assert "\n ---\n" in full_content  # Should be prefixed with space
-    assert "code block:" in full_content
-    assert "\n ...\n" in full_content  # Should be prefixed with space
-    assert "More text with --- and ... inline" in full_content
 
 def test_log_request_with_tools(logger, log_dir):
     """Test logging a request with tools parameter."""
