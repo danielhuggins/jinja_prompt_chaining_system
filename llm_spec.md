@@ -14,6 +14,10 @@
    * For non-streaming requests: Dump the exact OpenAI request and response
    * For streaming requests: Dump the exact request and reconstruct the full response from streamed chunks
    * Include a `done: true` flag to indicate when streaming is complete
+6. Support both synchronous and asynchronous template rendering:
+   * Enable `{% llmquery %}` tag usage in both sync and async environments
+   * Allow seamless integration with async web frameworks and applications
+   * Provide efficient non-blocking I/O during LLM API calls in async mode
 
 ## 2. Project Structure
 
@@ -88,6 +92,25 @@ Summarise the plot of Hamlet.
 ```
 
 *Line breaks* are allowed between parameters without special escapes.
+
+### 4.3. Async Support
+
+The `{% llmquery %}` tag works seamlessly in both synchronous and asynchronous contexts:
+
+```python
+# Synchronous usage
+template = env.get_template('template.jinja')
+result = template.render()
+
+# Asynchronous usage
+template = env.get_template('template.jinja')
+result = await template.render_async()
+```
+
+When using asynchronous rendering:
+- LLM API calls are non-blocking, allowing for better performance in web applications
+- Streaming responses can be processed more efficiently
+- The system automatically detects and handles async vs. sync contexts
 
 ## 5. Logging Format
 
