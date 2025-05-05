@@ -667,4 +667,433 @@ def test_streaming_content_formatting(logger, log_dir):
     assert "message" in log_data["response"]["choices"][0]
     assert "content" in log_data["response"]["choices"][0]["message"]
     assistant_content = log_data["response"]["choices"][0]["message"]["content"]
-    assert assistant_content == "Hello, world!" 
+    assert assistant_content == "Hello, world!"
+
+def test_empty_streaming_chunk(logger, log_dir):
+    """Test handling of empty streaming chunks."""
+    template_name = "empty_chunk_test"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [{"role": "user", "content": "Test empty chunks"}]
+    }
+    
+    logger.log_request(template_name, request)
+    
+    # Send an empty chunk
+    logger.update_response(template_name, "")
+    # Send a normal chunk after
+    logger.update_response(template_name, "Normal chunk")
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Buffer should contain the concatenated chunks
+    assert log_data["response"]["_content_buffer"] == "Normal chunk"
+    
+    # Complete the response
+    completion_data = {
+        "id": "chatcmpl-empty",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "Will be replaced"},
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Re-read the log file
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Verify the content was properly set
+    assert log_data["response"]["choices"][0]["message"]["content"] == "Normal chunk"
+
+def test_none_content_handling(logger, log_dir):
+    """Test handling of None content values in completion data."""
+    template_name = "none_content_test"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [{"role": "user", "content": "Test None content"}]
+    }
+    
+    logger.log_request(template_name, request)
+    logger.update_response(template_name, "This will be ignored")
+    
+    completion_data = {
+        "id": "chatcmpl-none",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": None,  # Explicitly None
+                    "tool_calls": [
+                        {
+                            "id": "call_xyz",
+                            "type": "function",
+                            "function": {"name": "test_function", "arguments": "{}"}
+                        }
+                    ]
+                },
+                "finish_reason": "tool_calls"
+            }
+        ]
+    }
+    
+    logger.complete_response(template_name, completion_data)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Content should remain None even though we had streaming content
+    assert log_data["response"]["choices"][0]["message"]["content"] is None
+    assert "tool_calls" in log_data["response"]["choices"][0]["message"]
+
+def test_special_whitespace_characters(logger, log_dir):
+    """Test handling of special whitespace characters in streaming chunks."""
+    template_name = "special_whitespace_test"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [{"role": "user", "content": "Test special whitespace"}]
+    }
+    
+    logger.log_request(template_name, request)
+    
+    # Send chunks with various special whitespace characters
+    special_whitespace = "\t\n\r\f\v"
+    chunks = ["First part", special_whitespace, "Last part"]
+    for chunk in chunks:
+        logger.update_response(template_name, chunk)
+    
+    # Complete the response
+    completion_data = {
+        "id": "chatcmpl-whitespace",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "placeholder"},
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Verify the special whitespace characters were preserved
+    expected_content = "First part" + special_whitespace + "Last part"
+    assert log_data["response"]["choices"][0]["message"]["content"] == expected_content
+
+def test_streaming_unicode_content(logger, log_dir):
+    """Test handling of Unicode characters in streaming content."""
+    template_name = "unicode_test"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [{"role": "user", "content": "Test Unicode streaming"}]
+    }
+    
+    logger.log_request(template_name, request)
+    
+    # Send chunks with various Unicode characters
+    unicode_chunks = ["Hello, ", "世界", "! ", "😊", " Unicode", " test"]
+    for chunk in unicode_chunks:
+        logger.update_response(template_name, chunk)
+    
+    # Complete the response
+    completion_data = {
+        "id": "chatcmpl-unicode",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "placeholder"},
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    with open(log_files[0], encoding='utf-8') as f:
+        log_data = yaml.safe_load(f)
+    
+    # Verify the Unicode characters were preserved
+    expected_content = "Hello, 世界! 😊 Unicode test"
+    assert log_data["response"]["choices"][0]["message"]["content"] == expected_content
+
+def test_very_long_streaming_content(logger, log_dir):
+    """Test handling of very long streaming content."""
+    template_name = "long_content_test"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [{"role": "user", "content": "Generate long content"}]
+    }
+    
+    logger.log_request(template_name, request)
+    
+    # Generate a very long content through streaming
+    # About 10KB of content in 100-byte chunks
+    base_chunk = "This is a chunk of text that will be repeated many times to test long content handling. "
+    chunk_count = 100
+    
+    for i in range(chunk_count):
+        logger.update_response(template_name, f"{base_chunk} {i}\n")
+    
+    # Complete the response
+    completion_data = {
+        "id": "chatcmpl-long",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "placeholder"},
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Verify the content was properly assembled and is the expected length
+    content = log_data["response"]["choices"][0]["message"]["content"]
+    expected_length = len(base_chunk) * chunk_count + sum(len(f" {i}\n") for i in range(chunk_count))
+    assert len(content) == expected_length
+    
+    # Verify content format in raw file
+    with open(log_files[0], 'r') as f:
+        log_content = f.read()
+    
+    # Check for pipe format with markdown comment
+    assert re.search(r'content: \|.*?# markdown', log_content, re.DOTALL)
+
+def test_update_non_existent_template(logger, log_dir):
+    """Test updating a non-existent template."""
+    # Try to update a template that doesn't exist
+    logger.update_response("non_existent_template", "This should be ignored")
+    
+    # Nothing to assert, just making sure it doesn't raise an exception
+
+def test_complete_non_existent_template(logger, log_dir):
+    """Test completing a non-existent template."""
+    # Try to complete a template that doesn't exist
+    logger.complete_response("non_existent_template", {"id": "dummy"})
+    
+    # Nothing to assert, just making sure it doesn't raise an exception
+
+def test_stream_after_completion(logger, log_dir):
+    """Test streaming to a template after completion."""
+    template_name = "completed_stream_test"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [{"role": "user", "content": "Test streaming after completion"}]
+    }
+    
+    logger.log_request(template_name, request)
+    logger.update_response(template_name, "Initial content")
+    
+    # Complete the response
+    completion_data = {
+        "id": "chatcmpl-complete",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "Initial content"},
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Try to update after completion (should be ignored)
+    logger.update_response(template_name, "This should be ignored")
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Content should not have been updated after completion
+    assert log_data["response"]["choices"][0]["message"]["content"] == "Initial content"
+
+def test_streaming_with_different_completion_content(logger, log_dir):
+    """Test streaming followed by completion with different content."""
+    template_name = "different_content_test"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [{"role": "user", "content": "Test streaming with different completion"}]
+    }
+    
+    logger.log_request(template_name, request)
+    logger.update_response(template_name, "Streamed content")
+    
+    # Complete with different content
+    completion_data = {
+        "id": "chatcmpl-diff",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "Different completion content"},
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # The streamed content should take precedence
+    assert log_data["response"]["choices"][0]["message"]["content"] == "Streamed content"
+
+def test_content_field_exact_formatting(logger, log_dir):
+    """Test the exact formatting of content fields with pipe, 3 spaces, and markdown comment."""
+    template_name = "exact_format_test"
+    request = {
+        "model": "gpt-4",
+        "stream": False,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Test\nwith\nmultiple\nlines"
+            }
+        ]
+    }
+    
+    response = {
+        "id": "chatcmpl-format",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Response\nwith\nmultiple\nlines"
+                },
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    
+    logger.log_request(template_name, request, response)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    # Read the raw file content to check the exact formatting
+    with open(log_files[0], 'r') as f:
+        log_content = f.read()
+    
+    # Check for content formatting with markdown comment 
+    # The regex matches content: followed by a pipe (|) and any chomp indicator (-), then spaces and a markdown comment
+    assert re.search(r'content: \|(-?)   # markdown', log_content)
+    
+    # Print the actual log content for debugging
+    print(f"Log content sample: {log_content[:200]}")
+    
+    # Also load the YAML to ensure the content can be properly parsed
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Verify content is preserved correctly
+    assert "Test\nwith\nmultiple\nlines" in log_data["request"]["messages"][0]["content"]
+    assert "Response\nwith\nmultiple\nlines" in log_data["response"]["choices"][0]["message"]["content"]
+
+def test_streaming_content_exact_formatting(logger, log_dir):
+    """Test the exact formatting of streamed content with pipe, 3 spaces, and markdown comment."""
+    template_name = "stream_exact_format"
+    request = {
+        "model": "gpt-4",
+        "stream": True,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Test streaming format"
+            }
+        ]
+    }
+    
+    logger.log_request(template_name, request)
+    
+    # Stream multiline content to ensure pipe style is used
+    chunks = ["First line\n", "Second line\n", "Third line"]
+    for chunk in chunks:
+        logger.update_response(template_name, chunk)
+    
+    # Complete the response
+    completion_data = {
+        "id": "chatcmpl-stream-format",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "placeholder"},
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    # Read the raw file content to check the exact formatting
+    with open(log_files[0], 'r') as f:
+        log_content = f.read()
+    
+    # Check for content formatting with markdown comment
+    # The regex matches content: followed by a pipe (|) and any chomp indicator (-), then spaces and a markdown comment
+    assert re.search(r'content: \|(-?)   # markdown', log_content)
+    
+    # Print the actual log content for debugging
+    print(f"Log content sample: {log_content[:200]}")
+    
+    # Verify the content itself was correctly preserved
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    expected_content = "First line\nSecond line\nThird line"
+    assert log_data["response"]["choices"][0]["message"]["content"] == expected_content 
