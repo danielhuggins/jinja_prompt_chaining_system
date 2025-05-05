@@ -152,8 +152,8 @@ def test_streaming_response_reconstruction(logger, log_dir):
     assert "request" in log_data
     assert log_data["request"] == request
     assert "response" in log_data
-    assert "content" in log_data["response"]
-    assert log_data["response"]["content"] == "Hello, world!"
+    assert "_content_buffer" in log_data["response"]
+    assert log_data["response"]["_content_buffer"] == "Hello, world!"
     assert "done" in log_data["response"]
     assert log_data["response"]["done"] is False  # Not marked as done yet
 
@@ -194,88 +194,107 @@ def test_streaming_response_reconstruction(logger, log_dir):
     assert log_data["response"]["choices"][0]["message"]["content"] == "Hello, world!"
     assert "usage" in log_data["response"]
     assert log_data["response"]["usage"]["total_tokens"] == 14
-    # Since we fixed the logger, check that content is directly in the response
-    assert log_data["response"]["content"] == "Hello, world!"
+    # Content should be in the message, not at root level
+    assert "_content_buffer" not in log_data["response"]
 
 def test_parallel_streaming_responses(logger, log_dir):
-    """Test handling multiple concurrent streaming responses."""
+    """Test that multiple streaming responses can be updated in parallel."""
+    # First stream
     template_name_1 = "test_stream_1"
-    template_name_2 = "test_stream_2"
-    
-    # Log initial requests
     request_1 = {
         "model": "gpt-4",
         "temperature": 0.7,
         "stream": True,
-        "messages": [{"role": "user", "content": "First request"}]
-    }
-    request_2 = {
-        "model": "gpt-4",
-        "temperature": 0.6,
-        "stream": True,
-        "messages": [{"role": "user", "content": "Second request"}]
+        "messages": [{"role": "user", "content": "Tell me a joke"}]
     }
     
+    # Second stream
+    template_name_2 = "test_stream_2"
+    request_2 = {
+        "model": "gpt-4",
+        "temperature": 0.7,
+        "stream": True,
+        "messages": [{"role": "user", "content": "Tell me a story"}]
+    }
+    
+    # Log initial requests
     logger.log_request(template_name_1, request_1)
     logger.log_request(template_name_2, request_2)
     
-    # Interleave updates
+    # Update streams alternately
     logger.update_response(template_name_1, "First ")
     logger.update_response(template_name_2, "Second ")
     logger.update_response(template_name_1, "response")
     logger.update_response(template_name_2, "response")
     
-    # Complete both
-    completion_data_1 = {
-        "id": "chatcmpl-111",
-        "model": "gpt-4",
-        "choices": [
-            {
-                "index": 0,
-                "message": {"role": "assistant", "content": "First response"},
-                "finish_reason": "stop"
-            }
-        ],
-        "usage": {"total_tokens": 10}
-    }
-    
-    completion_data_2 = {
-        "id": "chatcmpl-222",
-        "model": "gpt-4",
-        "choices": [
-            {
-                "index": 0,
-                "message": {"role": "assistant", "content": "Second response"},
-                "finish_reason": "stop"
-            }
-        ],
-        "usage": {"total_tokens": 11}
-    }
-    
-    logger.complete_response(template_name_1, completion_data_1)
-    logger.complete_response(template_name_2, completion_data_2)
-    
-    # Verify both log files
+    # Find the log files
     log_files_1 = list(log_dir.glob(f"{template_name_1}_*.log.yaml"))
     log_files_2 = list(log_dir.glob(f"{template_name_2}_*.log.yaml"))
-    
     assert len(log_files_1) == 1
     assert len(log_files_2) == 1
     
+    # Check that each stream contains its own content
     with open(log_files_1[0]) as f:
         log_data_1 = yaml.safe_load(f)
     
     with open(log_files_2[0]) as f:
         log_data_2 = yaml.safe_load(f)
     
-    # Check that content was preserved directly in response
-    assert log_data_1["response"]["content"] == "First response"
-    assert log_data_1["response"]["done"] is True
-    assert log_data_1["response"]["id"] == "chatcmpl-111"
+    assert log_data_1["response"]["_content_buffer"] == "First response"
+    assert log_data_2["response"]["_content_buffer"] == "Second response"
     
-    assert log_data_2["response"]["content"] == "Second response"
+    # Complete the responses
+    completion_data_1 = {
+        "id": "chatcmpl-stream1",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "First response"
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7}
+    }
+    
+    completion_data_2 = {
+        "id": "chatcmpl-stream2",
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Second response"
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {"prompt_tokens": 5, "completion_tokens": 2, "total_tokens": 7}
+    }
+    
+    logger.complete_response(template_name_1, completion_data_1)
+    logger.complete_response(template_name_2, completion_data_2)
+    
+    # Re-read the logs and check they have been completed correctly
+    with open(log_files_1[0]) as f:
+        log_data_1 = yaml.safe_load(f)
+    
+    with open(log_files_2[0]) as f:
+        log_data_2 = yaml.safe_load(f)
+    
+    # Check content is in the message structure
+    assert log_data_1["response"]["choices"][0]["message"]["content"] == "First response"
+    assert log_data_2["response"]["choices"][0]["message"]["content"] == "Second response"
+    
+    # Check the metadata
+    assert log_data_1["response"]["done"] is True
     assert log_data_2["response"]["done"] is True
-    assert log_data_2["response"]["id"] == "chatcmpl-222"
+    assert log_data_1["response"]["id"] == "chatcmpl-stream1"
+    assert log_data_2["response"]["id"] == "chatcmpl-stream2"
 
 def test_multiple_requests_same_template(logger, log_dir):
     """Test logging multiple requests for the same template name."""
@@ -469,3 +488,183 @@ def test_empty_log_dir():
     logger.complete_response("test", {"id": "chatcmpl-123"})
     
     # No assertions needed, just checking that no exceptions are raised 
+
+def test_content_field_formatting(logger, log_dir):
+    """Test that content fields use the required formatting with pipe, spaces, and markdown comment."""
+    template_name = "formatting_test"
+    request = {
+        "model": "gpt-4o-mini",
+        "temperature": 0.5,
+        "max_tokens": 100,
+        "stream": False,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Please summarize this concept in exactly two sentences."
+            }
+        ]
+    }
+    
+    response = {
+        "id": "chatcmpl-test123",
+        "model": "gpt-4o-mini",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "This is a test response.\nIt has multiple lines."
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 20,
+            "completion_tokens": 10,
+            "total_tokens": 30
+        }
+    }
+    
+    logger.log_request(template_name, request, response)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    # Read the raw file content to check the exact formatting
+    with open(log_files[0], 'r') as f:
+        log_content = f.read()
+    
+    # Check that content has the markdown comment
+    # Can match multiple formats with pipe-style declarations followed by markdown comment
+    assert re.search(r'content: \|.*?# markdown', log_content, re.DOTALL)
+
+def test_whitespace_preservation(logger, log_dir):
+    """Test that leading and trailing whitespace is preserved in content fields."""
+    template_name = "whitespace_test"
+    request = {
+        "model": "gpt-4o-mini",
+        "stream": False,
+        "messages": [
+            {
+                "role": "user",
+                "content": "\n  Leading whitespace and trailing whitespace  \n\n"
+            }
+        ]
+    }
+    
+    response = {
+        "id": "chatcmpl-whitespace",
+        "model": "gpt-4o-mini",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "\nResponse with\nleading and trailing newlines\n"
+                },
+                "finish_reason": "stop"
+            }
+        ]
+    }
+    
+    logger.log_request(template_name, request, response)
+    
+    # Find the log file
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    # Load the YAML to check the content was preserved exactly
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Verify user content preserves exact whitespace
+    user_content = log_data["request"]["messages"][0]["content"]
+    assert user_content == "\n  Leading whitespace and trailing whitespace  \n\n"
+    
+    # Verify assistant content preserves exact whitespace
+    assistant_content = log_data["response"]["choices"][0]["message"]["content"]
+    assert assistant_content == "\nResponse with\nleading and trailing newlines\n"
+    
+    # Also verify the raw formatting in the file
+    with open(log_files[0], 'r') as f:
+        log_content = f.read()
+    
+    # Look for content field with markdown comment
+    assert re.search(r'content:.*?# markdown', log_content, re.DOTALL)
+
+def test_streaming_content_formatting(logger, log_dir):
+    """Test content field formatting for streaming responses."""
+    template_name = "streaming_format_test"
+    request = {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "stream": True,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Test streaming response"
+            }
+        ]
+    }
+    
+    # Log initial request
+    logger.log_request(template_name, request)
+    
+    # Update with chunks
+    chunks = ["Hello", ", ", "world", "!"]
+    for chunk in chunks:
+        logger.update_response(template_name, chunk)
+    
+    # Find the log file to check formatting during streaming
+    log_files = list(log_dir.glob(f"{template_name}_*.log.yaml"))
+    assert len(log_files) == 1
+    
+    # Read the raw content to check the formatting
+    with open(log_files[0], 'r') as f:
+        streaming_log_content = f.read()
+    
+    # Check for content in user message - accept any format with markdown comment
+    assert re.search(r'content:.*?# markdown', streaming_log_content, re.DOTALL)
+    
+    # Complete the response with metadata
+    completion_data = {
+        "id": "chatcmpl-stream123",
+        "model": "gpt-4o-mini",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Hello, world!"
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 4,
+            "total_tokens": 14
+        }
+    }
+    logger.complete_response(template_name, completion_data)
+    
+    # Re-read the file after completion
+    with open(log_files[0], 'r') as f:
+        completed_log_content = f.read()
+    
+    # Check for formatting in the completed log
+    # Look for content followed by markdown comment in any pipe style
+    assert re.search(r'content:.*?# markdown', completed_log_content, re.DOTALL)
+    
+    # Also load the YAML to check the content
+    with open(log_files[0]) as f:
+        log_data = yaml.safe_load(f)
+    
+    # Verify the streamed content is preserved correctly in the message structure
+    assert "choices" in log_data["response"]
+    assert len(log_data["response"]["choices"]) > 0
+    assert "message" in log_data["response"]["choices"][0]
+    assert "content" in log_data["response"]["choices"][0]["message"]
+    assistant_content = log_data["response"]["choices"][0]["message"]["content"]
+    assert assistant_content == "Hello, world!" 

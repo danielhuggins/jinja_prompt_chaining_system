@@ -1,10 +1,11 @@
 import os
 import time
 import yaml
+import re
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
-class SafeLineBreakDumper(yaml.SafeDumper):
+class ContentAwareYAMLDumper(yaml.SafeDumper):
     """A custom YAML dumper that uses the pipe (|) style for multiline strings."""
     def represent_scalar(self, tag, value, style=None):
         if isinstance(value, str) and '\n' in value:
@@ -49,6 +50,52 @@ class LLMLogger:
         filename = f"{template_name}_{timestamp}_{counter}.log.yaml"
         return os.path.join(self.log_dir, filename)
     
+    def _post_process_yaml_file(self, file_path: str) -> None:
+        """
+        Post-process the YAML file to change content field formatting without disturbing
+        the actual YAML structure or content values.
+        """
+        if not os.path.exists(file_path):
+            return
+        
+        # Read the file content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Find all content field declarations with various formats and add the markdown comment
+        # Case 1: content: | (multiline block)
+        content = re.sub(r'(\s+content:\s*\|)(\s*\n)', r'\1   # markdown\2', content, flags=re.MULTILINE)
+        
+        # Case 2: content: |- (multiline compact block)
+        content = re.sub(r'(\s+content:\s*\|-)', r'\1   # markdown', content, flags=re.MULTILINE)
+        
+        # Case 3: content: |+ (multiline keep trailing whitespace)
+        content = re.sub(r'(\s+content:\s*\|\+)', r'\1   # markdown', content, flags=re.MULTILINE)
+        
+        # Case 4: content: |2 or any other number (explicit indentation)
+        content = re.sub(r'(\s+content:\s*\|\d+)', r'\1   # markdown', content, flags=re.MULTILINE)
+        
+        # Case 5: content: "..." (quoted string)
+        # Handle differently - add comment after the quotes
+        quoted_pattern = r'(\s+content:\s*")([^"]*)(")(\s*\n)'
+        replacement = lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}   # markdown{m.group(4)}"
+        content = re.sub(quoted_pattern, replacement, content, flags=re.MULTILINE)
+        
+        # Case 6: content: '...' (single-quoted string)
+        single_quoted_pattern = r"(\s+content:\s*')([^']*)(')"
+        replacement_sq = lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}   # markdown"
+        content = re.sub(single_quoted_pattern, replacement_sq, content, flags=re.MULTILINE)
+        
+        # Case 7: Plain scalar values (no quotes, no pipe)
+        # Match content: followed by any text until end of line, but not if it already has markdown or pipe
+        scalar_pattern = r'(\s+content:\s*)([^|"\'\n#][^\n]*)$'
+        replacement_scalar = lambda m: f"{m.group(1)}{m.group(2)}   # markdown"
+        content = re.sub(scalar_pattern, replacement_scalar, content, flags=re.MULTILINE)
+        
+        # Write back to the file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+    
     def log_request(
         self,
         template_name: str,
@@ -81,9 +128,12 @@ class LLMLogger:
             # Keep track of this log for streaming updates
             self.active_requests[template_name] = log_path
         
-        # Write to file using our custom dumper
+        # Write the YAML using the dumper
         with open(log_path, 'w', encoding='utf-8') as f:
-            yaml.dump(log_data, f, Dumper=SafeLineBreakDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            yaml.dump(log_data, f, Dumper=ContentAwareYAMLDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        
+        # Post-process the file for content field formatting
+        self._post_process_yaml_file(log_path)
         
         # Track logs for this template
         if template_name not in self.template_logs:
@@ -126,9 +176,15 @@ class LLMLogger:
         # Update the buffer with the new chunk
         log_data["response"]["_content_buffer"] += response_chunk
         
-        # Write back to file using our custom dumper
+        # Note: Do not add the content field at root level
+        # Keep only _content_buffer for internal tracking
+        
+        # Write to file
         with open(log_path, 'w', encoding='utf-8') as f:
-            yaml.dump(log_data, f, Dumper=SafeLineBreakDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            yaml.dump(log_data, f, Dumper=ContentAwareYAMLDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        
+        # Post-process for content field formatting
+        self._post_process_yaml_file(log_path)
             
     def complete_response(
         self,
@@ -180,7 +236,7 @@ class LLMLogger:
         # Add the done flag
         response["done"] = True
         
-        # Remove any existing content field at the root level
+        # Remove any root-level content field for compliance with tests
         if "content" in response:
             del response["content"]
         
@@ -191,9 +247,12 @@ class LLMLogger:
         if "_content_buffer" in log_data["response"]:
             del log_data["response"]["_content_buffer"]
         
-        # Write back to file using our custom dumper
+        # Write to file
         with open(log_path, 'w', encoding='utf-8') as f:
-            yaml.dump(log_data, f, Dumper=SafeLineBreakDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            yaml.dump(log_data, f, Dumper=ContentAwareYAMLDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        
+        # Post-process for content field formatting
+        self._post_process_yaml_file(log_path)
             
         # Clean up the active request
         del self.active_requests[template_name] 

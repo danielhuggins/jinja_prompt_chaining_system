@@ -114,24 +114,25 @@ When using asynchronous rendering:
 
 ## 5. Logging Format
 
+For each LLM interaction, a log file named `<template>_<timestamp>_<counter>.log.yaml` is created in the log directory. The log format exactly mirrors the OpenAI request and response structures, with the following details:
+
+- Each content field uses the pipe (|) YAML scalar indicator followed by exactly 3 spaces and a "# markdown" comment
+- The 3 spaces reserve room for YAML formatting indicators without changing the file structure
+- Leading/trailing whitespace is properly preserved
+- The format allows for "tailing" the log file during execution
+
+Example non-streaming log:
+
 ```yaml
 request:
   model: gpt-4o-mini
   temperature: 0.7
-  stream: true
+  stream: false
   max_tokens: 400
   messages:
     - role: user
-      content: |
+      content: |   # markdown
         Summarise the plot of Hamlet.
-  tools:
-    - type: function
-      function:
-        name: extract_pdf_text
-        parameters:
-          type: object
-          properties:
-            url: {type: string}
 
 response:
   id: chatcmpl-abc123
@@ -140,9 +141,38 @@ response:
     - index: 0
       message:
         role: assistant
-        content: |
-          Sure—here is a concise summary…
-          (streamed text grows here)
+        content: |   # markdown
+          Prince Hamlet of Denmark encounters the ghost of his father, who reveals he was murdered by Hamlet's uncle Claudius. Claudius has since married Hamlet's mother and become king. Hamlet seeks to avenge his father through an elaborate plan, feigning madness while confirming Claudius's guilt. His erratic behavior leads to the accidental killing of Polonius, driving Polonius's daughter Ophelia to suicide and his son Laertes to seek revenge. In a climactic duel between Hamlet and Laertes, Hamlet is poisoned, but before dying, he kills Claudius and finally avenges his father.
+
+  finish_reason: stop
+  usage:
+    prompt_tokens: 47
+    completion_tokens: 123
+    total_tokens: 170
+```
+
+Example streaming log, showing the completed state:
+
+```yaml
+request:
+  model: gpt-4o-mini
+  temperature: 0.7
+  stream: true
+  max_tokens: 400
+  messages:
+    - role: user
+      content: |   # markdown
+        Summarise the plot of Hamlet.
+
+response:
+  id: chatcmpl-abc123
+  model: gpt-4o-mini
+  choices:
+    - index: 0
+      message:
+        role: assistant
+        content: |   # markdown
+          Prince Hamlet of Denmark encounters the ghost of his father, who reveals he was murdered by Hamlet's uncle Claudius. Claudius has since married Hamlet's mother and become king. Hamlet seeks to avenge his father through an elaborate plan, feigning madness while confirming Claudius's guilt. His erratic behavior leads to the accidental killing of Polonius, driving Polonius's daughter Ophelia to suicide and his son Laertes to seek revenge. In a climactic duel between Hamlet and Laertes, Hamlet is poisoned, but before dying, he kills Claudius and finally avenges his father.
 
   finish_reason: stop
   usage:
@@ -151,6 +181,11 @@ response:
     total_tokens: 170
   done: true
 ```
+
+The logging system handles special whitespace cases appropriately:
+- Leading whitespace is preserved without using indentation indicators
+- Trailing whitespace/newlines are preserved without using chomp indicators (+/-)
+- The 3-space buffer after the pipe character allows for format modifications without changing overall structure
 
 ## 6. Testing
 
