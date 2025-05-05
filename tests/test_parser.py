@@ -32,7 +32,7 @@ class TestLLMQueryExtension:
         mock_caller = Mock(return_value="Hello, world!")
         
         result = extension._llmquery(
-            {"model": "gpt-4", "temperature": 0.7}, 
+            {"model": "gpt-4o-mini", "temperature": 0.7}, 
             mock_caller
         )
         
@@ -42,7 +42,7 @@ class TestLLMQueryExtension:
         mock_llm_client.query.assert_called_once()
         call_args = mock_llm_client.query.call_args[0]
         assert call_args[0] == "Hello, world!"
-        assert call_args[1]["model"] == "gpt-4"
+        assert call_args[1]["model"] == "gpt-4o-mini"
         assert call_args[1]["temperature"] == 0.7
     
     def test_llmquery_tag_parameters(self, mock_llm_client, mock_logger):
@@ -54,11 +54,11 @@ class TestLLMQueryExtension:
         # Test with different parameter sets
         param_sets = [
             # Spaces
-            {"model": "gpt-4", "temperature": 0.7, "max_tokens": 150},
+            {"model": "gpt-4o-mini", "temperature": 0.7, "max_tokens": 150},
             # Commas
-            {"model": "gpt-4", "temperature": 0.7, "max_tokens": 150},
+            {"model": "gpt-4o-mini", "temperature": 0.7, "max_tokens": 150},
             # Mixed format with stream=false
-            {"model": "gpt-4", "temperature": 0.7, "max_tokens": 150, "stream": False}
+            {"model": "gpt-4o-mini", "temperature": 0.7, "max_tokens": 150, "stream": False}
         ]
         
         mock_caller = Mock(return_value="Test prompt")
@@ -71,17 +71,17 @@ class TestLLMQueryExtension:
         calls = mock_llm_client.query.call_args_list
         
         # Check first call parameters
-        assert calls[0][0][1]["model"] == "gpt-4"
+        assert calls[0][0][1]["model"] == "gpt-4o-mini"
         assert calls[0][0][1]["temperature"] == 0.7
         assert calls[0][0][1]["max_tokens"] == 150
         
         # Check second call parameters
-        assert calls[1][0][1]["model"] == "gpt-4"
+        assert calls[1][0][1]["model"] == "gpt-4o-mini"
         assert calls[1][0][1]["temperature"] == 0.7
         assert calls[1][0][1]["max_tokens"] == 150
         
         # Check third call parameters
-        assert calls[2][0][1]["model"] == "gpt-4"
+        assert calls[2][0][1]["model"] == "gpt-4o-mini"
         assert calls[2][0][1]["temperature"] == 0.7
         assert calls[2][0][1]["max_tokens"] == 150
         assert calls[2][0][1]["stream"] is False
@@ -102,7 +102,7 @@ Here are some items:
         
         mock_caller = Mock(return_value=rendered_prompt)
         
-        extension._llmquery({"model": "gpt-4"}, mock_caller)
+        extension._llmquery({"model": "gpt-4o-mini"}, mock_caller)
         
         # Verify prompt was passed correctly 
         mock_llm_client.query.assert_called_once()
@@ -126,7 +126,7 @@ Here are some items:
         
         mock_caller = Mock(return_value="Simple prompt")
         
-        result = extension._llmquery({"model": "gpt-4", "stream": True}, mock_caller)
+        result = extension._llmquery({"model": "gpt-4o-mini", "stream": True}, mock_caller)
         assert result == "Hello, World!"
         
         # Verify stream parameter was passed
@@ -152,7 +152,7 @@ Here are some items:
         
         # The error should be caught and re-raised as a RuntimeError
         with pytest.raises(RuntimeError) as exc_info:
-            extension._llmquery({"model": "gpt-4"}, mock_caller)
+            extension._llmquery({"model": "gpt-4o-mini"}, mock_caller)
         
         assert "LLM query error" in str(exc_info.value)
         
@@ -180,7 +180,7 @@ def test_llmquery_tag_async_mode():
             
             # Test the async branch directly
             result = asyncio.run(extension._llmquery_async({
-                "model": "gpt-4",
+                "model": "gpt-4o-mini",
                 "temperature": 0.5
             }, mock_caller))
             
@@ -190,5 +190,5 @@ def test_llmquery_tag_async_mode():
             client.query.assert_called_once()
             call_args = client.query.call_args[0]
             assert call_args[0] == "Async prompt content"
-            assert call_args[1]["model"] == "gpt-4"
+            assert call_args[1]["model"] == "gpt-4o-mini"
             assert call_args[1]["temperature"] == 0.5 

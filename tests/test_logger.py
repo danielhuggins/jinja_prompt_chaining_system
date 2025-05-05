@@ -23,7 +23,7 @@ def test_log_file_naming_format(logger, log_dir):
     """Test that log files are named with template name and timestamp."""
     template_name = "test_template"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "messages": [{"role": "user", "content": "Hello"}]
     }
@@ -62,7 +62,7 @@ def test_log_request(logger, log_dir):
     """Test logging a request."""
     template_name = "test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "messages": [{"role": "user", "content": "Hello"}]
     }
@@ -84,14 +84,14 @@ def test_log_request_with_response(logger, log_dir):
     """Test logging a request with non-streaming response."""
     template_name = "test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "stream": False,
         "messages": [{"role": "user", "content": "Hello"}]
     }
     response = {
         "id": "chatcmpl-123abc",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -128,7 +128,7 @@ def test_streaming_response_reconstruction(logger, log_dir):
     """Test that streaming responses are reconstructed to match OpenAI's response format."""
     template_name = "test_streaming"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "stream": True,
         "messages": [{"role": "user", "content": "Hello"}]
@@ -160,7 +160,7 @@ def test_streaming_response_reconstruction(logger, log_dir):
     # Complete the response with metadata
     completion_data = {
         "id": "chatcmpl-abc123",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -186,7 +186,7 @@ def test_streaming_response_reconstruction(logger, log_dir):
     # Verify the response structure matches OpenAI's response format
     assert log_data["response"]["done"] is True
     assert log_data["response"]["id"] == "chatcmpl-abc123"
-    assert log_data["response"]["model"] == "gpt-4"
+    assert log_data["response"]["model"] == "gpt-4o-mini"
     assert "choices" in log_data["response"]
     assert len(log_data["response"]["choices"]) == 1
     assert log_data["response"]["choices"][0]["index"] == 0
@@ -202,7 +202,7 @@ def test_parallel_streaming_responses(logger, log_dir):
     # First stream
     template_name_1 = "test_stream_1"
     request_1 = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "stream": True,
         "messages": [{"role": "user", "content": "Tell me a joke"}]
@@ -211,7 +211,7 @@ def test_parallel_streaming_responses(logger, log_dir):
     # Second stream
     template_name_2 = "test_stream_2"
     request_2 = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "stream": True,
         "messages": [{"role": "user", "content": "Tell me a story"}]
@@ -246,7 +246,7 @@ def test_parallel_streaming_responses(logger, log_dir):
     # Complete the responses
     completion_data_1 = {
         "id": "chatcmpl-stream1",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -262,7 +262,7 @@ def test_parallel_streaming_responses(logger, log_dir):
     
     completion_data_2 = {
         "id": "chatcmpl-stream2",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -302,13 +302,13 @@ def test_multiple_requests_same_template(logger, log_dir):
     
     # First request and response with distinct content
     request1 = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "messages": [{"role": "user", "content": "First query"}]
     }
     response1 = {
         "id": "chatcmpl-111",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -322,13 +322,13 @@ def test_multiple_requests_same_template(logger, log_dir):
     
     # Second request and response with distinct content
     request2 = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.8,
         "messages": [{"role": "user", "content": "Second query"}]
     }
     response2 = {
         "id": "chatcmpl-222", # Different ID to distinguish
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -370,7 +370,7 @@ def test_log_request_with_tools(logger, log_dir):
     """Test logging a request with tools parameter."""
     template_name = "test_tools"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "messages": [{"role": "user", "content": "Extract text from this PDF"}],
         "tools": [
@@ -392,7 +392,7 @@ def test_log_request_with_tools(logger, log_dir):
     # Add the done flag directly to the response
     response = {
         "id": "chatcmpl-tools",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -438,7 +438,7 @@ def test_log_request_with_tools(logger, log_dir):
     # Verify the response structure matches OpenAI's response format
     assert log_data["response"]["done"] is True
     assert log_data["response"]["id"] == "chatcmpl-tools"
-    assert log_data["response"]["model"] == "gpt-4"
+    assert log_data["response"]["model"] == "gpt-4o-mini"
     assert "choices" in log_data["response"]
     assert len(log_data["response"]["choices"]) == 1
     assert log_data["response"]["choices"][0]["index"] == 0
@@ -461,7 +461,7 @@ def test_timestamp_in_filename(mock_sleep, mock_datetime, log_dir):
     
     logger = LLMLogger(str(log_dir))
     template_name = "test"
-    request = {"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]}
+    request = {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "Hello"}]}
     
     log_path = logger.log_request(template_name, request)
     
@@ -483,7 +483,7 @@ def test_empty_log_dir():
     logger = LLMLogger()  # No log directory
     
     # Should not raise an error when trying to log
-    logger.log_request("test", {"model": "gpt-4"})
+    logger.log_request("test", {"model": "gpt-4o-mini"})
     logger.update_response("test", "Hello")
     logger.complete_response("test", {"id": "chatcmpl-123"})
     
@@ -673,7 +673,7 @@ def test_empty_streaming_chunk(logger, log_dir):
     """Test handling of empty streaming chunks."""
     template_name = "empty_chunk_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [{"role": "user", "content": "Test empty chunks"}]
     }
@@ -698,7 +698,7 @@ def test_empty_streaming_chunk(logger, log_dir):
     # Complete the response
     completion_data = {
         "id": "chatcmpl-empty",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -720,7 +720,7 @@ def test_none_content_handling(logger, log_dir):
     """Test handling of None content values in completion data."""
     template_name = "none_content_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [{"role": "user", "content": "Test None content"}]
     }
@@ -730,7 +730,7 @@ def test_none_content_handling(logger, log_dir):
     
     completion_data = {
         "id": "chatcmpl-none",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -767,7 +767,7 @@ def test_special_whitespace_characters(logger, log_dir):
     """Test handling of special whitespace characters in streaming chunks."""
     template_name = "special_whitespace_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [{"role": "user", "content": "Test special whitespace"}]
     }
@@ -783,7 +783,7 @@ def test_special_whitespace_characters(logger, log_dir):
     # Complete the response
     completion_data = {
         "id": "chatcmpl-whitespace",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -809,7 +809,7 @@ def test_streaming_unicode_content(logger, log_dir):
     """Test handling of Unicode characters in streaming content."""
     template_name = "unicode_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [{"role": "user", "content": "Test Unicode streaming"}]
     }
@@ -824,7 +824,7 @@ def test_streaming_unicode_content(logger, log_dir):
     # Complete the response
     completion_data = {
         "id": "chatcmpl-unicode",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -850,7 +850,7 @@ def test_very_long_streaming_content(logger, log_dir):
     """Test handling of very long streaming content."""
     template_name = "long_content_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [{"role": "user", "content": "Generate long content"}]
     }
@@ -868,7 +868,7 @@ def test_very_long_streaming_content(logger, log_dir):
     # Complete the response
     completion_data = {
         "id": "chatcmpl-long",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -916,7 +916,7 @@ def test_stream_after_completion(logger, log_dir):
     """Test streaming to a template after completion."""
     template_name = "completed_stream_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [{"role": "user", "content": "Test streaming after completion"}]
     }
@@ -927,7 +927,7 @@ def test_stream_after_completion(logger, log_dir):
     # Complete the response
     completion_data = {
         "id": "chatcmpl-complete",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -955,7 +955,7 @@ def test_streaming_with_different_completion_content(logger, log_dir):
     """Test streaming followed by completion with different content."""
     template_name = "different_content_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [{"role": "user", "content": "Test streaming with different completion"}]
     }
@@ -966,7 +966,7 @@ def test_streaming_with_different_completion_content(logger, log_dir):
     # Complete with different content
     completion_data = {
         "id": "chatcmpl-diff",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -991,7 +991,7 @@ def test_content_field_exact_formatting(logger, log_dir):
     """Test the exact formatting of content fields with pipe, 3 spaces, and markdown comment."""
     template_name = "exact_format_test"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": False,
         "messages": [
             {
@@ -1003,7 +1003,7 @@ def test_content_field_exact_formatting(logger, log_dir):
     
     response = {
         "id": "chatcmpl-format",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,
@@ -1045,7 +1045,7 @@ def test_streaming_content_exact_formatting(logger, log_dir):
     """Test the exact formatting of streamed content with pipe, 3 spaces, and markdown comment."""
     template_name = "stream_exact_format"
     request = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "stream": True,
         "messages": [
             {
@@ -1065,7 +1065,7 @@ def test_streaming_content_exact_formatting(logger, log_dir):
     # Complete the response
     completion_data = {
         "id": "chatcmpl-stream-format",
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "choices": [
             {
                 "index": 0,

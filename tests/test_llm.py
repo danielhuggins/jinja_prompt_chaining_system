@@ -24,7 +24,7 @@ def test_llm_client_initialization_with_api_key(mock_openai):
 
 def test_llm_client_query_streaming(mock_openai):
     """Test LLM client query with streaming."""
-    # Setup mock response
+    # Setup mock chunks
     mock_chunks = [
         Mock(choices=[Mock(delta=Mock(content="Hello"))]),
         Mock(choices=[Mock(delta=Mock(content=", "))]),
@@ -36,7 +36,7 @@ def test_llm_client_query_streaming(mock_openai):
     client = LLMClient()
     prompt = "Say hello"
     params = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "max_tokens": 150
     }
@@ -47,7 +47,7 @@ def test_llm_client_query_streaming(mock_openai):
     
     # Verify API call
     mock_openai.return_value.chat.completions.create.assert_called_once_with(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": "Say hello"}],
         temperature=0.7,
         max_tokens=150,
@@ -65,7 +65,7 @@ def test_llm_client_query_non_streaming(mock_openai):
     client = LLMClient()
     prompt = "Say hello"
     params = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "max_tokens": 150
     }
@@ -76,7 +76,7 @@ def test_llm_client_query_non_streaming(mock_openai):
     
     # Verify API call
     mock_openai.return_value.chat.completions.create.assert_called_once_with(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": "Say hello"}],
         temperature=0.7,
         max_tokens=150,
@@ -114,7 +114,7 @@ def test_llm_client_query_error(mock_openai):
     
     client = LLMClient()
     prompt = "Say hello"
-    params = {"model": "gpt-4"}
+    params = {"model": "gpt-4o-mini"}
     
     # Test error handling
     with pytest.raises(RuntimeError) as exc_info:
@@ -133,7 +133,7 @@ def test_llm_client_query_with_tools(mock_openai):
     client = LLMClient()
     prompt = "Extract text from PDF"
     params = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "temperature": 0.7,
         "tools": [
             {
@@ -174,7 +174,7 @@ def test_llm_client_streaming_empty_content(mock_openai):
     
     client = LLMClient()
     prompt = "Say hello"
-    params = {"model": "gpt-4"}
+    params = {"model": "gpt-4o-mini"}
     
     # Test streaming response with empty chunks
     response = list(client.query(prompt, params, stream=True))
@@ -234,7 +234,7 @@ def test_llm_client_streaming_with_tool_calls(mock_openai):
     client = LLMClient()
     prompt = "What's the weather in New York?"
     params = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "tools": [
             {
                 "type": "function",
