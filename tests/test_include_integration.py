@@ -159,7 +159,6 @@ def template_dir():
         
         yield tmpdir
 
-@pytest.mark.skip("Test skipped - YAML format issues need to be resolved")
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 @patch('jinja_prompt_chaining_system.parser.LLMLogger')
 def test_cli_with_include(mock_logger, mock_llm_client, runner, template_dir):

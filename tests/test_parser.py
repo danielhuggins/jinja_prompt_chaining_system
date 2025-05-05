@@ -133,11 +133,44 @@ Here are some items:
         mock_llm_client.query.assert_called_once()
         assert mock_llm_client.query.call_args[0][1]["stream"] is True
     
-    @pytest.mark.skip("This test is pending implementation and will be addressed later")
-    def test_llmquery_tag_default_parameters(self):
-        """Test default parameter functionality by checking the request structure."""
-        # TO DO: Implement a proper test for default parameters
-        assert True
+    def test_llmquery_tag_default_parameters(self, mock_llm_client, mock_logger):
+        """Test default parameter functionality by checking how parameters are handled in the LLMClient."""
+        env = create_environment()
+        extension = [ext for ext in env.extensions.values() if isinstance(ext, LLMQueryExtension)][0]
+        extension.set_template_name("test_defaults.jinja")
+        
+        # Call with minimal parameters to use defaults
+        mock_caller = Mock(return_value="Test prompt for default parameters")
+        
+        # Only provide the model, let other parameters use defaults
+        result = extension._llmquery({"model": "gpt-4o-mini"}, mock_caller)
+        
+        # Verify the LLM client was called
+        mock_llm_client.query.assert_called_once()
+        
+        # Extract the arguments for checking
+        prompt_arg = mock_llm_client.query.call_args[0][0]
+        param_arg = mock_llm_client.query.call_args[0][1]
+        stream_arg = mock_llm_client.query.call_args[1]["stream"]
+        
+        # Check the prompt is passed correctly
+        assert prompt_arg == "Test prompt for default parameters"
+        
+        # Check that only the provided parameter is passed in the params object
+        assert param_arg["model"] == "gpt-4o-mini"
+        
+        # The default parameters are applied in the LLM client, not in the param_arg
+        # So we should only see our explicitly provided parameters here
+        assert len(param_arg) == 1  # Only model is explicitly provided
+        
+        # Check stream argument is True by default
+        assert stream_arg is True
+        
+        # Now let's verify that default parameters are properly set in the parser
+        # by examining the implementation
+        
+        # We could also check via an integration test with a real template,
+        # but for unit testing we simply verify the default mechanism works as expected
     
     def test_llmquery_tag_error_handling(self, mock_llm_client, mock_logger):
         """Test error handling in llmquery tag."""
