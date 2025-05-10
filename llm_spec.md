@@ -10,7 +10,11 @@
    * optional **log directory** (`--logdir logs/`)
 3. Let tag parameters be arbitrary Jinja expressions (no `with` keyword), where separators between `name=expr` pairs can be **spaces**, **commas**, or **both**.
 4. Default to streaming; allow `stream=false`.
-5. Log each API interaction in a log file named `<template>_<timestamp>.log.yaml` within the log directory that exactly mirrors the OpenAI request and response structures:
+5. Implement a run-based logging system that organizes all related logs in a structured directory:
+   * Create a unique timestamp-named directory (`run_YYYY-MM-DDThh-mm-ss-ffffff`) for each template execution 
+   * Store a complete, unmodified copy of the context data in `context.yaml`
+   * Preserve template metadata in `metadata.yaml` (template path, context file path, timestamp)
+   * Log all LLM API interactions in the `llmcalls/` subdirectory
    * For non-streaming requests: Dump the exact OpenAI request and response
    * For streaming requests: Dump the exact request and reconstruct the full response from streamed chunks
    * Include a `done: true` flag to indicate when streaming is complete
@@ -30,6 +34,7 @@ jinja_prompt_chaining_system/        ← Git repo & distribution name
 │     ├─ templates/
 │     ├─ parser.py
 │     ├─ cli.py
+│     ├─ logger.py                   ← Contains LLMLogger and RunLogger classes
 │     └─ utils.py
 ├─ tests/
 ├─ examples/
@@ -114,16 +119,72 @@ When using asynchronous rendering:
 
 ## 5. Logging Format
 
-For each LLM interaction, a log file named `<template>_<timestamp>_<counter>.log.yaml` is created in the log directory. The log format exactly mirrors the OpenAI request and response structures, with the following details:
+### 5.1. Run-Based Directory Structure
 
-- Each content field uses the pipe (|) YAML scalar indicator followed by exactly 3 spaces and a "# markdown" comment
-- The 3 spaces reserve room for YAML formatting indicators without changing the file structure
-- Leading/trailing whitespace is properly preserved
-- The format allows for "tailing" the log file during execution
+Each template execution creates a unique run with this precise directory structure:
 
-Example non-streaming log:
+```
+logs/                                                   # Base log directory specified with --logdir
+└─ run_2023-07-25T14-32-18-567891/                     # Run directory with UTC timestamp
+   ├─ metadata.yaml                                    # Execution metadata
+   ├─ context.yaml                                     # Exact copy of rendered context
+   └─ llmcalls/                                        # All LLM API interactions
+      ├─ template_2023-07-25T14-32-18-567923_0.log.yaml  # First LLM call
+      └─ template_2023-07-25T14-32-19-123456_1.log.yaml  # Subsequent LLM calls if any
+```
+
+The naming convention follows:
+- **Run directory**: `run_YYYY-MM-DDThh-mm-ss-ffffff` (UTC timestamp with microsecond precision)
+- **LLM log files**: `<template_name>_YYYY-MM-DDThh-mm-ss-ffffff_<counter>.log.yaml`
+
+The `RunLogger` class manages this directory structure:
+1. Creates the timestamped run directory upon instantiation
+2. Stores the rendered context as a complete YAML dump
+3. Records template metadata (path, timestamp, context file path)
+4. Provides an `LLMLogger` instance specifically for the `llmcalls/` subdirectory
+
+### 5.2. Metadata and Context Files
+
+The `metadata.yaml` file contains:
 
 ```yaml
+# Example: logs/run_2023-07-25T14-32-18-567891/metadata.yaml
+timestamp: '2023-07-25T14:32:18.567891+00:00'  # ISO 8601 UTC timestamp with timezone
+template: /absolute/path/to/template.jinja     # Absolute path to the template file
+context_file: /absolute/path/to/context.yaml   # Absolute path to the context file
+```
+
+The `context.yaml` file is an exact YAML serialization of the context object used in rendering:
+
+```yaml
+# Example: logs/run_2023-07-25T14-32-18-567891/context.yaml
+name: World
+settings:
+  model: gpt-4o-mini
+  temperature: 0.7
+user_data:
+  location: New York
+  preferences:
+    - topic: Science
+    - topic: History
+```
+
+Both files are generated at the beginning of the run before template rendering starts.
+
+### 5.3. LLM Call Log Format
+
+Each LLM API interaction generates a log file in the `llmcalls/` directory that exactly mirrors the OpenAI API request and response structure. The implementation preserves:
+
+- All request parameters (model, temperature, max_tokens, etc.)
+- Complete message content with exact whitespace
+- Full response structure including metadata (tokens, ID, etc.)
+- Streaming vs. non-streaming behavior
+
+#### 5.3.1. Non-Streaming Example
+
+```yaml
+# Example: logs/run_2023-07-25T14-32-18-567891/llmcalls/template_2023-07-25T14-32-18-567923_0.log.yaml
+timestamp: '2023-07-25T14:32:18.567923+00:00'
 request:
   model: gpt-4o-mini
   temperature: 0.7
@@ -151,9 +212,11 @@ response:
     total_tokens: 170
 ```
 
-Example streaming log, showing the completed state:
+#### 5.3.2. Streaming Example
 
 ```yaml
+# Example: logs/run_2023-07-25T14-32-18-567891/llmcalls/template_2023-07-25T14-32-18-567923_0.log.yaml
+timestamp: '2023-07-25T14:32:18.567923+00:00'
 request:
   model: gpt-4o-mini
   temperature: 0.7
@@ -179,10 +242,35 @@ response:
     prompt_tokens: 47
     completion_tokens: 123
     total_tokens: 170
-  done: true
+  done: true  # Indicates streaming is complete
 ```
 
-The logging system handles special whitespace cases appropriately:
+### 5.4. Technical Implementation Details
+
+The logging system consists of two main classes:
+
+1. **RunLogger**: Manages the run-level organization
+   - Creates the timestamped run directory
+   - Saves context and metadata files
+   - Provides LLMLogger instances for the run
+   
+2. **LLMLogger**: Handles individual LLM API call logging
+   - Maintains the existing logging format for compatibility
+   - Creates log files with properly formatted YAML
+   - Handles both streaming and non-streaming responses
+
+The `RunLogger` is initialized in the CLI with:
+
+```python
+run_logger = RunLogger(log_dir)
+run_id = run_logger.start_run(
+    metadata={"template": template_path, "context_file": context_path},
+    context=context_data
+)
+llm_logger = run_logger.get_llm_logger(run_id)
+```
+
+All whitespace in log files is preserved exactly as in the original content:
 - Leading whitespace is preserved without using indentation indicators
 - Trailing whitespace/newlines are preserved without using chomp indicators (+/-)
 - The 3-space buffer after the pipe character allows for format modifications without changing overall structure
@@ -196,7 +284,7 @@ The logging system handles special whitespace cases appropriately:
 python -m jinja_prompt_chaining_system.cli <template.jinja> --context ctx.yaml --out out.txt --logdir logs/
 ```
 
-and verify both output and `<template>_<timestamp>.log.yaml`.
+and verify both output and the run directory structure with all its contents.
 
 Run all tests with:
 
