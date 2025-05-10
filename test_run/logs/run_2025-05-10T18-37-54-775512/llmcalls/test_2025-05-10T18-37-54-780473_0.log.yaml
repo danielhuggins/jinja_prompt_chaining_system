@@ -1,0 +1,23 @@
+timestamp: '2025-05-10T18:37:54.784611+00:00'
+request:
+  model: gpt-4
+  temperature: 0.7
+  max_tokens: 150
+  stream: true
+  messages:
+  - role: user
+    content: Hello world   # markdown
+response:
+  done: true
+  id: chatcmpl-1495372111600
+  model: gpt-4
+  choices:
+  - index: 0
+    message:
+      role: assistant
+      content: Hello! How can I assist you today?   # markdown
+    finish_reason: stop
+  usage:
+    prompt_tokens: 2
+    completion_tokens: 8
+    total_tokens: 11

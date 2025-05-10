@@ -4,7 +4,7 @@ import click
 import asyncio
 from jinja2 import Environment, FileSystemLoader
 from .parser import LLMQueryExtension
-from .logger import LLMLogger
+from .logger import RunLogger
 from . import create_environment
 
 @click.command()
@@ -38,12 +38,29 @@ def main(template: str, context: str, out: str, logdir: str):
         extension = env.globals['extension']
         extension.set_template_name(template)
         
+        # Setup run-based logging if logdir is provided
+        run_id = None
         if logdir:
             os.makedirs(logdir, exist_ok=True)
-            extension.logger = LLMLogger(logdir)
+            run_logger = RunLogger(logdir)
+            
+            # Start a new run with template metadata
+            run_metadata = {
+                "template": template,
+                "context_file": context
+            }
+            run_id = run_logger.start_run(metadata=run_metadata)
+            
+            # Get the LLM logger for this run
+            llm_logger = run_logger.get_llm_logger(run_id)
+            extension.logger = llm_logger
         
         # Render template - use manual sync rendering to avoid async issues
         result = render_template_sync(template_obj, ctx)
+        
+        # End the run if we started one
+        if logdir and run_id:
+            run_logger.end_run()
         
         # Handle output
         if out:
