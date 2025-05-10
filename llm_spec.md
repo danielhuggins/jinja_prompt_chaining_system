@@ -22,6 +22,10 @@
    * Enable `{% llmquery %}` tag usage in both sync and async environments
    * Allow seamless integration with async web frameworks and applications
    * Provide efficient non-blocking I/O during LLM API calls in async mode
+7. Disable HTML escaping by default:
+   * Prevent automatic HTML escaping of special characters like `<`, `>`, `&`
+   * Ensure LLM queries and responses preserve exact formatting and characters
+   * This behavior is appropriate for prompt engineering where HTML escaping is rarely desired
 
 ## 2. Project Structure
 

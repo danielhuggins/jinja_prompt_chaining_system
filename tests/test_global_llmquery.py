@@ -27,7 +27,8 @@ def mock_env():
     env = Environment(
         loader=FileSystemLoader("."),
         extensions=[LLMQueryExtension],
-        enable_async=True  # Enable async mode
+        enable_async=True,  # Enable async mode
+        autoescape=False  # Disable HTML escaping by default
     )
     
     # Get the extension

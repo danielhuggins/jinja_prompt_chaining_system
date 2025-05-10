@@ -11,7 +11,8 @@ def create_environment(template_path=None) -> Environment:
     env = Environment(
         loader=FileSystemLoader(template_path) if template_path else None,
         enable_async=True,  # Enable async support for potential future use
-        extensions=[LLMQueryExtension]
+        extensions=[LLMQueryExtension],
+        autoescape=False  # Disable HTML escaping by default
     )
     
     # Make the extension instance available in the global namespace
