@@ -117,9 +117,67 @@ When using asynchronous rendering:
 - Streaming responses can be processed more efficiently
 - The system automatically detects and handles async vs. sync contexts
 
-## 5. Logging Format
+## 5. Global `llmquery()` Function
 
-### 5.1. Run-Based Directory Structure
+In addition to the `{% llmquery %}` tag, the system provides a global `llmquery()` function that can be called directly in Jinja expressions. This function has identical semantics to the tag version but uses a function call syntax.
+
+### 5.1. Syntax
+
+```jinja
+{{ llmquery(prompt="Your prompt text", param1=expr1, param2=expr2, ...) }}
+```
+
+* **Prompt**: Required parameter containing the text to send to the LLM.
+* **Parameters**: Additional parameters identical to those accepted by the tag version (model, temperature, max_tokens, etc.).
+* **Return Value**: The function returns the LLM's response as a string.
+
+### 5.2. Examples
+
+Basic usage:
+
+```jinja
+{{ llmquery(prompt="Summarise the plot of Hamlet.", model="gpt-4o-mini", temperature=0.7) }}
+```
+
+Using a variable for the prompt:
+
+```jinja
+{% set my_prompt = "Summarise the plot of " + title %}
+{{ llmquery(prompt=my_prompt, model="gpt-4o-mini", temperature=0.7, max_tokens=150) }}
+```
+
+Multi-line prompts:
+
+```jinja
+{{ llmquery(
+    prompt="""Generate a list of 5 creative names for:
+    - A pet {{ animal_type }}
+    - That lives in {{ location }}
+    - With the personality: {{ personality }}
+    """,
+    model="gpt-4o-mini",
+    temperature=0.8
+) }}
+```
+
+### 5.3. Async Support
+
+Like the tag version, the `llmquery()` function works seamlessly in both synchronous and asynchronous contexts:
+
+```python
+# Works in both render() and render_async() contexts
+template = env.get_template('template.jinja')
+
+# Synchronous
+result = template.render()
+
+# Asynchronous
+result = await template.render_async()
+```
+
+## 6. Logging Format
+
+### 6.1. Run-Based Directory Structure
 
 Each template execution creates a unique run with this precise directory structure:
 
@@ -143,7 +201,7 @@ The `RunLogger` class manages this directory structure:
 3. Records template metadata (path, timestamp, context file path)
 4. Provides an `LLMLogger` instance specifically for the `llmcalls/` subdirectory
 
-### 5.2. Metadata and Context Files
+### 6.2. Metadata and Context Files
 
 The `metadata.yaml` file contains:
 
@@ -171,7 +229,7 @@ user_data:
 
 Both files are generated at the beginning of the run before template rendering starts.
 
-### 5.3. LLM Call Log Format
+### 6.3. LLM Call Log Format
 
 Each LLM API interaction generates a log file in the `llmcalls/` directory that exactly mirrors the OpenAI API request and response structure. The implementation preserves:
 
@@ -180,7 +238,7 @@ Each LLM API interaction generates a log file in the `llmcalls/` directory that 
 - Full response structure including metadata (tokens, ID, etc.)
 - Streaming vs. non-streaming behavior
 
-#### 5.3.1. Non-Streaming Example
+#### 6.3.1. Non-Streaming Example
 
 ```yaml
 # Example: logs/run_2023-07-25T14-32-18-567891/llmcalls/template_2023-07-25T14-32-18-567923_0.log.yaml
@@ -212,7 +270,7 @@ response:
     total_tokens: 170
 ```
 
-#### 5.3.2. Streaming Example
+#### 6.3.2. Streaming Example
 
 ```yaml
 # Example: logs/run_2023-07-25T14-32-18-567891/llmcalls/template_2023-07-25T14-32-18-567923_0.log.yaml
@@ -245,7 +303,7 @@ response:
   done: true  # Indicates streaming is complete
 ```
 
-### 5.4. Technical Implementation Details
+### 6.4. Technical Implementation Details
 
 The logging system consists of two main classes:
 
@@ -275,7 +333,7 @@ All whitespace in log files is preserved exactly as in the original content:
 - Trailing whitespace/newlines are preserved without using chomp indicators (+/-)
 - The 3-space buffer after the pipe character allows for format modifications without changing overall structure
 
-## 6. Testing
+## 7. Testing
 
 * **Unit tests** with `pytest`.
 * **CLI end-to-end tests** that invoke:
@@ -292,7 +350,7 @@ Run all tests with:
 pytest -n auto
 ```
 
-## 7. Release
+## 8. Release
 
 * **Publish** `jinja_prompt_chaining_system` wheel to PyPI.
 * **Docs** (optional) via MkDocs.
