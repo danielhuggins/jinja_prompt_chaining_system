@@ -36,6 +36,9 @@ coverage.xml
 
 # Project specific
 logs/
+test_run/
+test_run2/
+response.json
 
 # IDE
 .idea/
