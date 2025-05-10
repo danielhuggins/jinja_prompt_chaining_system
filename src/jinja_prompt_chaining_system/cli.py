@@ -44,12 +44,12 @@ def main(template: str, context: str, out: str, logdir: str):
             os.makedirs(logdir, exist_ok=True)
             run_logger = RunLogger(logdir)
             
-            # Start a new run with template metadata
+            # Start a new run with template metadata and context
             run_metadata = {
                 "template": template,
                 "context_file": context
             }
-            run_id = run_logger.start_run(metadata=run_metadata)
+            run_id = run_logger.start_run(metadata=run_metadata, context=ctx)
             
             # Get the LLM logger for this run
             llm_logger = run_logger.get_llm_logger(run_id)

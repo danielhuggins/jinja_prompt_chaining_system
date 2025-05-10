@@ -375,7 +375,14 @@ def test_multi_query_with_includes(mock_logger, mock_llm_client, runner, templat
         assert "Future prospects" in second_call_prompt
         
         # Verify log files were created for both queries
-        log_files = os.listdir(log_dir)
+        # With the new run-based logging, logs are now in run_*/llmcalls/
+        run_dirs = [d for d in os.listdir(log_dir) if d.startswith("run_")]
+        assert len(run_dirs) == 1
+        
+        llmcalls_dir = os.path.join(log_dir, run_dirs[0], "llmcalls")
+        assert os.path.exists(llmcalls_dir)
+        
+        log_files = os.listdir(llmcalls_dir)
         assert len(log_files) == 2
 
 @patch('jinja_prompt_chaining_system.parser.LLMClient')

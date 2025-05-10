@@ -175,4 +175,82 @@ def test_run_id_format(mock_datetime, log_dir):
     
     # Check the run ID format
     expected_run_id = "run_2023-01-01T12-00-00-123456"
-    assert run_id == expected_run_id 
+    assert run_id == expected_run_id
+
+def test_save_context_in_run(run_logger, log_dir):
+    """Test that the context is saved in the run directory."""
+    # Create a test context
+    context = {
+        "name": "Test User",
+        "parameters": {
+            "temperature": 0.7,
+            "max_tokens": 100
+        },
+        "prompts": ["Hello, world!", "How are you?"]
+    }
+    
+    # Start a run with context
+    run_id = run_logger.start_run(context=context)
+    
+    # Verify the context file exists
+    context_file = log_dir / run_id / "context.yaml"
+    assert os.path.exists(context_file)
+    
+    # Check the context content
+    with open(context_file) as f:
+        stored_context = yaml.safe_load(f)
+    
+    # Verify the stored context matches the original
+    assert stored_context == context
+
+def test_save_context_not_overwritten(run_logger, log_dir):
+    """Test that the context isn't overwritten by metadata."""
+    # Create a test context with a 'timestamp' field
+    context = {
+        "timestamp": "should-not-be-overwritten",
+        "data": "test data"
+    }
+    
+    # Create metadata with the same field
+    metadata = {
+        "template": "test.jinja"
+    }
+    
+    # Start a run with both context and metadata
+    run_id = run_logger.start_run(context=context, metadata=metadata)
+    
+    # Verify both files exist
+    context_file = log_dir / run_id / "context.yaml"
+    metadata_file = log_dir / run_id / "metadata.yaml"
+    assert os.path.exists(context_file)
+    assert os.path.exists(metadata_file)
+    
+    # Check the context content
+    with open(context_file) as f:
+        stored_context = yaml.safe_load(f)
+    
+    # Check the metadata content
+    with open(metadata_file) as f:
+        stored_metadata = yaml.safe_load(f)
+    
+    # Verify context timestamp is preserved
+    assert stored_context["timestamp"] == "should-not-be-overwritten"
+    # Verify metadata has a timestamp field but it's a real timestamp (not "metadata-timestamp")
+    assert "timestamp" in stored_metadata
+    assert re.match(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+00:00', stored_metadata["timestamp"])
+
+def test_context_None_still_creates_empty_context_file(run_logger, log_dir):
+    """Test that even when context is None, an empty context file is created."""
+    # Start a run with no context
+    run_id = run_logger.start_run()
+    
+    # Verify the context file exists but is empty (or contains empty data structure)
+    context_file = log_dir / run_id / "context.yaml"
+    assert os.path.exists(context_file)
+    
+    # Check the context content
+    with open(context_file) as f:
+        stored_context = yaml.safe_load(f)
+    
+    # Should be an empty dict, not None
+    assert stored_context == {} 

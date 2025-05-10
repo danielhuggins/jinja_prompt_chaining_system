@@ -300,12 +300,13 @@ class RunLogger:
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S-%f")
         return f"run_{timestamp}"
     
-    def start_run(self, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def start_run(self, metadata: Optional[Dict[str, Any]] = None, context: Optional[Dict[str, Any]] = None) -> str:
         """
-        Start a new run with optional metadata.
+        Start a new run with optional metadata and context.
         
         Args:
             metadata: Optional dictionary of metadata about the run
+            context: Optional dictionary of the context used for rendering the template
             
         Returns:
             run_id: The unique identifier for this run
@@ -323,6 +324,12 @@ class RunLogger:
         
         # Create a logger for this run
         self.run_loggers[run_id] = LLMLogger(llmcalls_dir)
+        
+        # Save context in the run directory
+        context_path = os.path.join(run_dir, "context.yaml")
+        with open(context_path, 'w', encoding='utf-8') as f:
+            yaml.dump(context or {}, f, Dumper=ContentAwareYAMLDumper, 
+                      default_flow_style=False, sort_keys=False, allow_unicode=True)
         
         # Save metadata
         if metadata is not None:

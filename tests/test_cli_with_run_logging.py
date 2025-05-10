@@ -80,12 +80,17 @@ def test_cli_with_run_logging(mock_run_logger, mock_llm_client, mock_render, run
     # Verify RunLogger was initialized
     mock_run_logger.assert_called_once_with(log_dir)
     
-    # Verify run was started with template metadata
+    # Verify run was started with template metadata and context
     run_logger_instance.start_run.assert_called_once()
-    expected_metadata = {"template": template_path, "context_file": context_path}
     call_args = run_logger_instance.start_run.call_args[1]
-    # Check that metadata dict contains at least the expected keys/values
+    
+    # Check that metadata dict contains the expected keys/values
+    expected_metadata = {"template": template_path, "context_file": context_path}
     assert all(item in call_args["metadata"].items() for item in expected_metadata.items())
+    
+    # Verify that context was loaded and passed to start_run
+    assert "context" in call_args
+    assert call_args["context"] == {"name": "World"}
     
     # Verify LLM logger for the run was obtained
     run_logger_instance.get_llm_logger.assert_called_once_with(run_id)
@@ -138,6 +143,7 @@ def test_cli_with_real_run_logging(mock_llm_client, mock_render, runner, templat
     run_dir = run_dirs[0]
     assert (run_dir / "llmcalls").exists()
     assert (run_dir / "metadata.yaml").exists()
+    assert (run_dir / "context.yaml").exists()
     
     # Verify metadata contains template info
     with open(run_dir / "metadata.yaml") as f:
@@ -145,4 +151,10 @@ def test_cli_with_real_run_logging(mock_llm_client, mock_render, runner, templat
     
     assert "timestamp" in metadata
     assert "template" in metadata
-    assert "context_file" in metadata 
+    assert "context_file" in metadata
+    
+    # Verify context contains the loaded context data
+    with open(run_dir / "context.yaml") as f:
+        context = yaml.safe_load(f)
+    
+    assert context == {"name": "World"} 
