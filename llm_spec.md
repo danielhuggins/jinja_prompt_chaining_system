@@ -26,6 +26,11 @@
    * Prevent automatic HTML escaping of special characters like `<`, `>`, `&`
    * Ensure LLM queries and responses preserve exact formatting and characters
    * This behavior is appropriate for prompt engineering where HTML escaping is rarely desired
+8. Provide exportable API functions for library users:
+   * Enable programmatic rendering of prompt templates with the same semantics as the CLI
+   * Support both synchronous and asynchronous rendering
+   * Accept both file paths and Python dictionaries for context data
+   * Maintain the same logging and output capabilities as the CLI
 
 ## 2. Project Structure
 
@@ -39,6 +44,7 @@ jinja_prompt_chaining_system/        ← Git repo & distribution name
 │     ├─ parser.py
 │     ├─ cli.py
 │     ├─ logger.py                   ← Contains LLMLogger and RunLogger classes
+│     ├─ api.py                      ← Contains exportable API functions
 │     └─ utils.py
 ├─ tests/
 ├─ examples/
@@ -56,9 +62,66 @@ jinja-run path/to/template.jinja \
   [--logdir logs/]
 ```
 
-## 4. `{% llmquery %}` Tag Semantics
+## 4. API Usage
 
-### 4.1. Syntax
+The library provides exportable functions for programmatically rendering prompt templates:
+
+### 4.1. Synchronous API
+
+```python
+from jinja_prompt_chaining_system import render_prompt
+
+# Basic usage with file paths
+result = render_prompt(
+    template_path="path/to/template.jinja",
+    context_data="path/to/context.yaml"
+)
+
+# Using a Python dictionary for context
+context = {"name": "World", "settings": {"model": "gpt-4o-mini"}}
+result = render_prompt(
+    template_path="path/to/template.jinja",
+    context_data=context
+)
+
+# With output file and logging
+result = render_prompt(
+    template_path="path/to/template.jinja",
+    context_data=context,
+    output_path="output.txt",
+    log_dir="logs/"
+)
+```
+
+### 4.2. Asynchronous API
+
+```python
+import asyncio
+from jinja_prompt_chaining_system import render_prompt_async
+
+async def main():
+    # Basic async usage with file paths
+    result = await render_prompt_async(
+        template_path="path/to/template.jinja",
+        context_data="path/to/context.yaml"
+    )
+    
+    # With dictionary context and logging
+    context = {"name": "World", "settings": {"model": "gpt-4o-mini"}}
+    result = await render_prompt_async(
+        template_path="path/to/template.jinja",
+        context_data=context,
+        output_path="output.txt",
+        log_dir="logs/"
+    )
+
+# Run the async function
+asyncio.run(main())
+```
+
+## 5. `{% llmquery %}` Tag Semantics
+
+### 5.1. Syntax
 
 ```jinja
 {% llmquery
@@ -72,7 +135,7 @@ jinja-run path/to/template.jinja \
 * **Values**: any valid Jinja expression (literals, variables, filters, etc.).
 * **Body**: the single "user" message sent to the LLM.
 
-### 4.2. Examples
+### 5.2. Examples
 
 Using **spaces** only:
 
@@ -102,7 +165,7 @@ Summarise the plot of Hamlet.
 
 *Line breaks* are allowed between parameters without special escapes.
 
-### 4.3. Async Support
+### 5.3. Async Support
 
 The `{% llmquery %}` tag works seamlessly in both synchronous and asynchronous contexts:
 
@@ -121,11 +184,11 @@ When using asynchronous rendering:
 - Streaming responses can be processed more efficiently
 - The system automatically detects and handles async vs. sync contexts
 
-## 5. Global `llmquery()` Function
+## 6. Global `llmquery()` Function
 
 In addition to the `{% llmquery %}` tag, the system provides a global `llmquery()` function that can be called directly in Jinja expressions. This function has identical semantics to the tag version but uses a function call syntax.
 
-### 5.1. Syntax
+### 6.1. Syntax
 
 ```jinja
 {{ llmquery(prompt="Your prompt text", param1=expr1, param2=expr2, ...) }}
@@ -135,7 +198,7 @@ In addition to the `{% llmquery %}` tag, the system provides a global `llmquery(
 * **Parameters**: Additional parameters identical to those accepted by the tag version (model, temperature, max_tokens, etc.).
 * **Return Value**: The function returns the LLM's response as a string.
 
-### 5.2. Examples
+### 6.2. Examples
 
 Basic usage:
 
@@ -164,7 +227,7 @@ Multi-line prompts:
 ) }}
 ```
 
-### 5.3. Async Support
+### 6.3. Async Support
 
 Like the tag version, the `llmquery()` function works seamlessly in both synchronous and asynchronous contexts:
 
@@ -179,9 +242,9 @@ result = template.render()
 result = await template.render_async()
 ```
 
-## 6. Logging Format
+## 7. Logging Format
 
-### 6.1. Run-Based Directory Structure
+### 7.1. Run-Based Directory Structure
 
 Each template execution creates a unique run with this precise directory structure:
 
@@ -205,7 +268,7 @@ The `RunLogger` class manages this directory structure:
 3. Records template metadata (path, timestamp, context file path)
 4. Provides an `LLMLogger` instance specifically for the `llmcalls/` subdirectory
 
-### 6.2. Metadata and Context Files
+### 7.2. Metadata and Context Files
 
 The `metadata.yaml` file contains:
 
@@ -233,7 +296,7 @@ user_data:
 
 Both files are generated at the beginning of the run before template rendering starts.
 
-### 6.3. LLM Call Log Format
+### 7.3. LLM Call Log Format
 
 Each LLM API interaction generates a log file in the `llmcalls/` directory that exactly mirrors the OpenAI API request and response structure. The implementation preserves:
 
@@ -242,7 +305,7 @@ Each LLM API interaction generates a log file in the `llmcalls/` directory that 
 - Full response structure including metadata (tokens, ID, etc.)
 - Streaming vs. non-streaming behavior
 
-#### 6.3.1. Non-Streaming Example
+#### 7.3.1. Non-Streaming Example
 
 ```yaml
 # Example: logs/run_2023-07-25T14-32-18-567891/llmcalls/template_2023-07-25T14-32-18-567923_0.log.yaml
@@ -274,7 +337,7 @@ response:
     total_tokens: 170
 ```
 
-#### 6.3.2. Streaming Example
+#### 7.3.2. Streaming Example
 
 ```yaml
 # Example: logs/run_2023-07-25T14-32-18-567891/llmcalls/template_2023-07-25T14-32-18-567923_0.log.yaml
@@ -307,7 +370,7 @@ response:
   done: true  # Indicates streaming is complete
 ```
 
-### 6.4. Technical Implementation Details
+### 7.4. Technical Implementation Details
 
 The logging system consists of two main classes:
 
@@ -337,7 +400,7 @@ All whitespace in log files is preserved exactly as in the original content:
 - Trailing whitespace/newlines are preserved without using chomp indicators (+/-)
 - The 3-space buffer after the pipe character allows for format modifications without changing overall structure
 
-## 7. Testing
+## 8. Testing
 
 * **Unit tests** with `pytest`.
 * **CLI end-to-end tests** that invoke:
@@ -354,7 +417,7 @@ Run all tests with:
 pytest -n auto
 ```
 
-## 8. Release
+## 9. Release
 
 * **Publish** `jinja_prompt_chaining_system` wheel to PyPI.
 * **Docs** (optional) via MkDocs.
