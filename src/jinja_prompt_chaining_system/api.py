@@ -48,9 +48,9 @@ def render_template_sync(template_obj, context):
 
 def render_prompt(
     template_path: Union[str, Path],
-    context_data: Union[str, Dict[str, Any]],
-    output_path: Optional[Union[str, Path]] = None,
-    log_dir: Optional[Union[str, Path]] = None
+    context: Union[str, Dict[str, Any]],
+    out: Optional[Union[str, Path]] = None,
+    logdir: Optional[Union[str, Path]] = None
 ) -> str:
     """
     Render a Jinja template containing LLM queries.
@@ -61,9 +61,9 @@ def render_prompt(
     
     Args:
         template_path: Path to the Jinja template file.
-        context_data: Either a path to a YAML context file or a dictionary with context data.
-        output_path: Optional path where the rendered output will be saved.
-        log_dir: Optional directory for storing logs.
+        context: Either a path to a YAML context file or a dictionary with context data.
+        out: Optional path where the rendered output will be saved.
+        logdir: Optional directory for storing logs.
         
     Returns:
         The rendered prompt output as a string.
@@ -75,17 +75,17 @@ def render_prompt(
     """
     # Convert paths to strings if they're Path objects
     template_path = str(template_path) if isinstance(template_path, Path) else template_path
-    output_path = str(output_path) if isinstance(output_path, Path) and output_path else output_path
-    log_dir = str(log_dir) if isinstance(log_dir, Path) and log_dir else log_dir
+    out = str(out) if isinstance(out, Path) and out else out
+    logdir = str(logdir) if isinstance(logdir, Path) and logdir else logdir
     
     # Check if template file exists
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Template file not found: {template_path}")
     
     # Load context data
-    if isinstance(context_data, str):
+    if isinstance(context, str):
         # It's a file path to a YAML file
-        context_path = context_data
+        context_path = context
         if not os.path.exists(context_path):
             raise FileNotFoundError(f"Context file not found: {context_path}")
         
@@ -96,7 +96,7 @@ def render_prompt(
             raise ValueError(f"Invalid YAML in context file: {str(e)}")
     else:
         # It's a dictionary
-        ctx = context_data
+        ctx = context
         context_path = None  # No file path since it's a dict
     
     # Setup Jinja environment
@@ -113,9 +113,9 @@ def render_prompt(
     
     # Setup run-based logging if logdir is provided
     run_id = None
-    if log_dir:
-        os.makedirs(log_dir, exist_ok=True)
-        run_logger = RunLogger(log_dir)
+    if logdir:
+        os.makedirs(logdir, exist_ok=True)
+        run_logger = RunLogger(logdir)
         
         # Start a new run with template metadata and context
         run_metadata = {
@@ -133,19 +133,19 @@ def render_prompt(
         result = render_template_sync(template_obj, ctx)
         
         # End the run if we started one
-        if log_dir and run_id:
+        if logdir and run_id:
             run_logger.end_run()
         
         # Handle output
-        if output_path:
-            output_dir = os.path.dirname(os.path.abspath(output_path))
+        if out:
+            output_dir = os.path.dirname(os.path.abspath(out))
             os.makedirs(output_dir, exist_ok=True)
-            with open(output_path, 'w') as f:
+            with open(out, 'w') as f:
                 f.write(result)
         
         return result
     except Exception as e:
-        if log_dir and run_id:
+        if logdir and run_id:
             # Still try to end the run even if there was an error
             try:
                 run_logger.end_run()
@@ -155,9 +155,9 @@ def render_prompt(
 
 async def render_prompt_async(
     template_path: Union[str, Path],
-    context_data: Union[str, Dict[str, Any]],
-    output_path: Optional[Union[str, Path]] = None,
-    log_dir: Optional[Union[str, Path]] = None
+    context: Union[str, Dict[str, Any]],
+    out: Optional[Union[str, Path]] = None,
+    logdir: Optional[Union[str, Path]] = None
 ) -> str:
     """
     Asynchronously render a Jinja template containing LLM queries.
@@ -167,9 +167,9 @@ async def render_prompt_async(
     
     Args:
         template_path: Path to the Jinja template file.
-        context_data: Either a path to a YAML context file or a dictionary with context data.
-        output_path: Optional path where the rendered output will be saved.
-        log_dir: Optional directory for storing logs.
+        context: Either a path to a YAML context file or a dictionary with context data.
+        out: Optional path where the rendered output will be saved.
+        logdir: Optional directory for storing logs.
         
     Returns:
         The rendered prompt output as a string.
@@ -181,17 +181,17 @@ async def render_prompt_async(
     """
     # Convert paths to strings if they're Path objects
     template_path = str(template_path) if isinstance(template_path, Path) else template_path
-    output_path = str(output_path) if isinstance(output_path, Path) and output_path else output_path
-    log_dir = str(log_dir) if isinstance(log_dir, Path) and log_dir else log_dir
+    out = str(out) if isinstance(out, Path) and out else out
+    logdir = str(logdir) if isinstance(logdir, Path) and logdir else logdir
     
     # Check if template file exists
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Template file not found: {template_path}")
     
     # Load context data
-    if isinstance(context_data, str):
+    if isinstance(context, str):
         # It's a file path to a YAML file
-        context_path = context_data
+        context_path = context
         if not os.path.exists(context_path):
             raise FileNotFoundError(f"Context file not found: {context_path}")
         
@@ -202,7 +202,7 @@ async def render_prompt_async(
             raise ValueError(f"Invalid YAML in context file: {str(e)}")
     else:
         # It's a dictionary
-        ctx = context_data
+        ctx = context
         context_path = None  # No file path since it's a dict
     
     # Setup Jinja environment
@@ -219,9 +219,9 @@ async def render_prompt_async(
     
     # Setup run-based logging if logdir is provided
     run_id = None
-    if log_dir:
-        os.makedirs(log_dir, exist_ok=True)
-        run_logger = RunLogger(log_dir)
+    if logdir:
+        os.makedirs(logdir, exist_ok=True)
+        run_logger = RunLogger(logdir)
         
         # Start a new run with template metadata and context
         run_metadata = {
@@ -239,19 +239,19 @@ async def render_prompt_async(
         result = await template_obj.render_async(**ctx)
         
         # End the run if we started one
-        if log_dir and run_id:
+        if logdir and run_id:
             run_logger.end_run()
         
         # Handle output
-        if output_path:
-            output_dir = os.path.dirname(os.path.abspath(output_path))
+        if out:
+            output_dir = os.path.dirname(os.path.abspath(out))
             os.makedirs(output_dir, exist_ok=True)
-            with open(output_path, 'w') as f:
+            with open(out, 'w') as f:
                 f.write(result)
         
         return result
     except Exception as e:
-        if log_dir and run_id:
+        if logdir and run_id:
             # Still try to end the run even if there was an error
             try:
                 run_logger.end_run()

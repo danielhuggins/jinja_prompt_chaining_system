@@ -71,7 +71,7 @@ def test_render_prompt_with_output(mock_logger, mock_llm_client, template_file, 
     output_path = str(tmp_path / "output" / "output.txt")
     
     # Call the function
-    result = render_prompt(template_file, context_file, output_path=output_path)
+    result = render_prompt(template_file, context_file, out=output_path)
     
     # Check that the result contains our mocked response
     assert "Hello, World!" in result
@@ -101,7 +101,7 @@ def test_render_prompt_with_logdir(mock_run_logger, mock_llm_logger, mock_llm_cl
     log_dir = str(tmp_path / "logs")
     
     # Call the function
-    result = render_prompt(template_file, context_file, log_dir=log_dir)
+    result = render_prompt(template_file, context_file, logdir=log_dir)
     
     # Check that the result contains our mocked response
     assert "Hello, World!" in result
@@ -198,7 +198,7 @@ async def test_render_prompt_async_with_logdir(mock_run_logger, mock_llm_logger,
     log_dir = str(tmp_path / "logs")
     
     # Call the async function
-    result = await render_prompt_async(async_template_file, context_dict, log_dir=log_dir)
+    result = await render_prompt_async(async_template_file, context_dict, logdir=log_dir)
     
     # Check that the result contains our mocked response
     assert "Hello, World!" in result
@@ -225,7 +225,7 @@ async def test_render_prompt_async_with_output(mock_logger, mock_llm_client, asy
     output_path = str(tmp_path / "output" / "async_output.txt")
     
     # Call the async function
-    result = await render_prompt_async(async_template_file, context_dict, output_path=output_path)
+    result = await render_prompt_async(async_template_file, context_dict, out=output_path)
     
     # Check that the result contains our mocked response
     assert "Hello, World!" in result

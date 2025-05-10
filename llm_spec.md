@@ -74,22 +74,22 @@ from jinja_prompt_chaining_system import render_prompt
 # Basic usage with file paths
 result = render_prompt(
     template_path="path/to/template.jinja",
-    context_data="path/to/context.yaml"
+    context="path/to/context.yaml"
 )
 
 # Using a Python dictionary for context
 context = {"name": "World", "settings": {"model": "gpt-4o-mini"}}
 result = render_prompt(
     template_path="path/to/template.jinja",
-    context_data=context
+    context=context
 )
 
 # With output file and logging
 result = render_prompt(
     template_path="path/to/template.jinja",
-    context_data=context,
-    output_path="output.txt",
-    log_dir="logs/"
+    context=context,
+    out="output.txt",
+    logdir="logs/"
 )
 ```
 
@@ -103,16 +103,16 @@ async def main():
     # Basic async usage with file paths
     result = await render_prompt_async(
         template_path="path/to/template.jinja",
-        context_data="path/to/context.yaml"
+        context="path/to/context.yaml"
     )
     
     # With dictionary context and logging
     context = {"name": "World", "settings": {"model": "gpt-4o-mini"}}
     result = await render_prompt_async(
         template_path="path/to/template.jinja",
-        context_data=context,
-        output_path="output.txt",
-        log_dir="logs/"
+        context=context,
+        out="output.txt",
+        logdir="logs/"
     )
 
 # Run the async function
