@@ -32,6 +32,10 @@
    * Support both synchronous and asynchronous rendering
    * Accept both file paths and Python dictionaries for context data
    * Maintain the same logging and output capabilities as the CLI
+9. Undefined variables throw errors by default:
+   * When a template references a variable that is not defined in the context, a runtime error is thrown
+   * This prevents silent failures and makes debugging easier
+   * No special configuration is needed for this behavior as it is the default
 
 ## 2. Project Structure
 

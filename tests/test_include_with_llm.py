@@ -292,8 +292,7 @@ def test_circular_include_in_llmquery(mock_llm_client, temp_template_dir):
     # Verify the exception contains information about circular includes
     assert "circular" in str(exc_info.value).lower() or "recursion" in str(exc_info.value).lower()
 
-# Removing this test for now as it's whitespace-sensitive
-@pytest.mark.skip("Test skipped - we're not testing for undefined variables at this time")
+# Now enabling this test since we've specified undefined variables should throw errors
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 def test_include_with_undefined_variables(mock_llm_client, temp_template_dir):
     """Test include with undefined variables inside {% llmquery %}."""

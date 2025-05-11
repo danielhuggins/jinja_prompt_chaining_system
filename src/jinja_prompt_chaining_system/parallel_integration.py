@@ -10,8 +10,10 @@ import inspect
 from typing import Dict, Any, List, Optional, Set, Union
 import re
 
-from jinja2 import Environment, Template, nodes, FileSystemLoader
+from jinja2 import Environment, Template, nodes, FileSystemLoader, StrictUndefined
 from jinja2.ext import Extension
+from jinja2.lexer import Token, TokenStream
+from jinja2.parser import Parser
 
 from .parser import LLMQueryExtension
 from .parallel import ParallelExecutor, Query, ParallelQueryTracker, extract_dependencies
@@ -419,7 +421,8 @@ def create_environment_with_parallel(template_path=None, enable_parallel=True, m
         loader=FileSystemLoader(template_path) if template_path else None,
         enable_async=True,
         extensions=[ParallelLLMQueryExtension],
-        autoescape=False  # Disable HTML escaping by default
+        autoescape=False,  # Disable HTML escaping by default
+        undefined=StrictUndefined  # Ensure undefined variables raise errors
     )
     
     # Configure the extension

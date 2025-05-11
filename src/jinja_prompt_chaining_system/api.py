@@ -10,7 +10,7 @@ import asyncio
 from typing import Dict, Any, Optional, Union
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .parser import LLMQueryExtension
 from .logger import RunLogger
 
@@ -21,7 +21,8 @@ def create_environment(template_path=None) -> Environment:
         loader=FileSystemLoader(template_path) if template_path else None,
         enable_async=True,  # Enable async support for potential future use
         extensions=[LLMQueryExtension],
-        autoescape=False  # Disable HTML escaping by default
+        autoescape=False,  # Disable HTML escaping by default
+        undefined=StrictUndefined  # Ensure undefined variables raise errors
     )
     
     # Make the extension instance available in the global namespace
