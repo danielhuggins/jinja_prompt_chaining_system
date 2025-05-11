@@ -50,7 +50,8 @@ def render_prompt(
     template_path: Union[str, Path],
     context: Union[str, Dict[str, Any]],
     out: Optional[Union[str, Path]] = None,
-    logdir: Optional[Union[str, Path]] = None
+    logdir: Optional[Union[str, Path]] = None,
+    name: Optional[str] = None
 ) -> str:
     """
     Render a Jinja template containing LLM queries.
@@ -64,6 +65,7 @@ def render_prompt(
         context: Either a path to a YAML context file or a dictionary with context data.
         out: Optional path where the rendered output will be saved.
         logdir: Optional directory for storing logs.
+        name: Optional name for the run, which will be appended to the run directory name.
         
     Returns:
         The rendered prompt output as a string.
@@ -122,7 +124,7 @@ def render_prompt(
             "template": template_path,
             "context_file": context_path
         }
-        run_id = run_logger.start_run(metadata=run_metadata, context=ctx)
+        run_id = run_logger.start_run(metadata=run_metadata, context=ctx, name=name)
         
         # Get the LLM logger for this run
         llm_logger = run_logger.get_llm_logger(run_id)
@@ -157,7 +159,8 @@ async def render_prompt_async(
     template_path: Union[str, Path],
     context: Union[str, Dict[str, Any]],
     out: Optional[Union[str, Path]] = None,
-    logdir: Optional[Union[str, Path]] = None
+    logdir: Optional[Union[str, Path]] = None,
+    name: Optional[str] = None
 ) -> str:
     """
     Asynchronously render a Jinja template containing LLM queries.
@@ -170,6 +173,7 @@ async def render_prompt_async(
         context: Either a path to a YAML context file or a dictionary with context data.
         out: Optional path where the rendered output will be saved.
         logdir: Optional directory for storing logs.
+        name: Optional name for the run, which will be appended to the run directory name.
         
     Returns:
         The rendered prompt output as a string.
@@ -228,7 +232,7 @@ async def render_prompt_async(
             "template": template_path,
             "context_file": context_path
         }
-        run_id = run_logger.start_run(metadata=run_metadata, context=ctx)
+        run_id = run_logger.start_run(metadata=run_metadata, context=ctx, name=name)
         
         # Get the LLM logger for this run
         llm_logger = run_logger.get_llm_logger(run_id)

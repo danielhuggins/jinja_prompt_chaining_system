@@ -15,7 +15,9 @@ from . import create_environment
               help='Output file path (defaults to stdout)')
 @click.option('--logdir', '-l', type=click.Path(),
               help='Directory for log files')
-def main(template: str, context: str, out: str, logdir: str):
+@click.option('--name', '-n', type=str,
+              help='Optional name for the run')
+def main(template: str, context: str, out: str, logdir: str, name: str):
     """Process a Jinja template with LLM query support."""
     try:
         # Load context
@@ -49,7 +51,7 @@ def main(template: str, context: str, out: str, logdir: str):
                 "template": template,
                 "context_file": context
             }
-            run_id = run_logger.start_run(metadata=run_metadata, context=ctx)
+            run_id = run_logger.start_run(metadata=run_metadata, context=ctx, name=name)
             
             # Get the LLM logger for this run
             llm_logger = run_logger.get_llm_logger(run_id)

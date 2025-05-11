@@ -295,23 +295,38 @@ class RunLogger:
         self.current_run_id = None
         self.run_loggers = {}  # Maps run_id to LLMLogger instances
     
-    def _generate_run_id(self) -> str:
-        """Generate a unique run ID based on the current timestamp."""
+    def _generate_run_id(self, name: Optional[str] = None) -> str:
+        """
+        Generate a unique run ID based on the current timestamp.
+        
+        Args:
+            name: Optional name to append to the run ID
+        
+        Returns:
+            A run ID in the format 'run_TIMESTAMP' or 'run_TIMESTAMP_name'
+        """
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S-%f")
+        
+        if name:
+            # Sanitize the name by replacing invalid characters with underscores
+            sanitized_name = re.sub(r'[\\/:*?"<>|]', '_', name)
+            return f"run_{timestamp}_{sanitized_name}"
+        
         return f"run_{timestamp}"
     
-    def start_run(self, metadata: Optional[Dict[str, Any]] = None, context: Optional[Dict[str, Any]] = None) -> str:
+    def start_run(self, metadata: Optional[Dict[str, Any]] = None, context: Optional[Dict[str, Any]] = None, name: Optional[str] = None) -> str:
         """
         Start a new run with optional metadata and context.
         
         Args:
             metadata: Optional dictionary of metadata about the run
             context: Optional dictionary of the context used for rendering the template
+            name: Optional name for the run, which will be appended to the run directory name
             
         Returns:
             run_id: The unique identifier for this run
         """
-        run_id = self._generate_run_id()
+        run_id = self._generate_run_id(name)
         self.current_run_id = run_id
         
         # Create run directory
@@ -337,6 +352,11 @@ class RunLogger:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 **metadata
             }
+            
+            # Add the run name to metadata if provided
+            if name:
+                metadata_with_timestamp["name"] = name
+            
             metadata_path = os.path.join(run_dir, "metadata.yaml")
             with open(metadata_path, 'w', encoding='utf-8') as f:
                 yaml.dump(metadata_with_timestamp, f, Dumper=ContentAwareYAMLDumper, 

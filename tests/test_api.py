@@ -114,6 +114,41 @@ def test_render_prompt_with_logdir(mock_run_logger, mock_llm_logger, mock_llm_cl
 
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 @patch('jinja_prompt_chaining_system.parser.LLMLogger')
+@patch('jinja_prompt_chaining_system.api.RunLogger')
+def test_render_prompt_with_run_name(mock_run_logger, mock_llm_logger, mock_llm_client, template_file, context_dict, tmp_path):
+    """Test that the API function correctly passes the run name to RunLogger."""
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Hello, World!"
+    mock_llm_client.return_value = client
+    
+    # Mock RunLogger
+    run_logger_instance = Mock()
+    run_logger_instance.start_run.return_value = "test_run_id"
+    run_logger_instance.get_llm_logger.return_value = Mock()
+    mock_run_logger.return_value = run_logger_instance
+    
+    # Set log directory and run name
+    log_dir = str(tmp_path / "logs")
+    run_name = "experiment-1"
+    
+    # Call the function
+    result = render_prompt(template_file, context_dict, logdir=log_dir, name=run_name)
+    
+    # Check that the result contains our mocked response
+    assert "Hello, World!" in result
+    
+    # Check that RunLogger was called correctly with the run name
+    mock_run_logger.assert_called_once_with(log_dir)
+    run_logger_instance.start_run.assert_called_once()
+    call_args = run_logger_instance.start_run.call_args[1]
+    assert "name" in call_args
+    assert call_args["name"] == run_name
+    run_logger_instance.get_llm_logger.assert_called_once_with("test_run_id")
+    run_logger_instance.end_run.assert_called_once()
+
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
 def test_render_prompt_file_not_found(mock_logger, mock_llm_client, tmp_path):
     """Test API function with nonexistent template file."""
     nonexistent_template = str(tmp_path / "nonexistent.jinja")
@@ -206,6 +241,44 @@ async def test_render_prompt_async_with_logdir(mock_run_logger, mock_llm_logger,
     # Check that RunLogger was called correctly
     mock_run_logger.assert_called_once_with(log_dir)
     run_logger_instance.start_run.assert_called_once()
+    run_logger_instance.get_llm_logger.assert_called_once_with("test_run_id")
+    run_logger_instance.end_run.assert_called_once()
+
+@pytest.mark.asyncio
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+@patch('jinja_prompt_chaining_system.api.RunLogger')
+async def test_render_prompt_async_with_run_name(mock_run_logger, mock_llm_logger, mock_llm_client, async_template_file, context_dict, tmp_path):
+    """Test that the async API function correctly passes the run name to RunLogger."""
+    # Setup mocks
+    client = Mock()
+    client.query_async = AsyncMock()
+    client.query_async.return_value = "Hello, World!"
+    client.query = Mock(return_value="Hello, World!")  # For synchronous fallback
+    mock_llm_client.return_value = client
+    
+    # Mock RunLogger
+    run_logger_instance = Mock()
+    run_logger_instance.start_run.return_value = "test_run_id"
+    run_logger_instance.get_llm_logger.return_value = Mock()
+    mock_run_logger.return_value = run_logger_instance
+    
+    # Set log directory and run name
+    log_dir = str(tmp_path / "logs")
+    run_name = "async-experiment-1"
+    
+    # Call the async function
+    result = await render_prompt_async(async_template_file, context_dict, logdir=log_dir, name=run_name)
+    
+    # Check that the result contains our mocked response
+    assert "Hello, World!" in result
+    
+    # Check that RunLogger was called correctly with the run name
+    mock_run_logger.assert_called_once_with(log_dir)
+    run_logger_instance.start_run.assert_called_once()
+    call_args = run_logger_instance.start_run.call_args[1]
+    assert "name" in call_args
+    assert call_args["name"] == run_name
     run_logger_instance.get_llm_logger.assert_called_once_with("test_run_id")
     run_logger_instance.end_run.assert_called_once()
 
