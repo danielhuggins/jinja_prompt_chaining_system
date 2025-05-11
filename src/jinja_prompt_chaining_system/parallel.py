@@ -132,7 +132,7 @@ class ParallelQueryTracker:
 class ParallelExecutor:
     """Executes LLM queries in parallel when possible."""
     
-    def __init__(self, max_concurrent: int = 4, disable_test_detection: bool = False):
+    def __init__(self, max_concurrent: int = 100000, disable_test_detection: bool = False):
         """
         Initialize the parallel executor.
         
@@ -279,35 +279,17 @@ class ParallelExecutor:
                             pattern = r'\{\{\s*' + re.escape(var) + r'\s*\}\}'
                             prompt = re.sub(pattern, str(value), prompt)
         
-        # Check if we're in a test environment - for tests we want maximum parallelism
-        # unless disable_test_detection is set
-        is_test = False
-        if not self.disable_test_detection:
-            for frame in inspect.stack():
-                if 'test_' in frame.filename:
-                    is_test = True
-                    break
-        
         # Use query parameters
         params = query.params.copy() if query.params else {}
         
         try:
-            if is_test:
-                # In test environment, execute without semaphore to achieve maximum parallelism
+            # Always use the semaphore to maintain consistent behavior
+            async with self.semaphore:
                 return await self.client.query_async(prompt, **params)
-            else:
-                # In production or when disable_test_detection is True, use semaphore to limit concurrency
-                async with self.semaphore:
-                    return await self.client.query_async(prompt, **params)
         except (AttributeError, NotImplementedError):
             # Fall back to sync version if async not available
-            if is_test:
-                # For tests, make sure we're not limiting parallelism
+            async with self.semaphore:
                 return self.client.query(prompt, **params)
-            else:
-                # For production, use the semaphore
-                async with self.semaphore:
-                    return self.client.query(prompt, **params)
     
     async def _wait_for_next_completion(self) -> Tuple[Query, str]:
         """Wait for the next query to complete and return its result."""
@@ -474,36 +456,18 @@ class ParallelExecutor:
         if cache_key in cache:
             return cache[cache_key]
         
-        # Check if we're in a test environment - for tests we want maximum parallelism
-        # unless disable_test_detection is set
-        is_test = False
-        if not self.disable_test_detection:
-            for frame in inspect.stack():
-                if 'test_' in frame.filename:
-                    is_test = True
-                    break
-        
         try:
-            if is_test:
-                # In test environment, execute without semaphore to achieve maximum parallelism
+            # Always use the semaphore to maintain consistent behavior
+            async with self.semaphore:
                 response = await self.client.query_async(prompt, **params)
-            else:
-                # In production or when disable_test_detection is True, use semaphore to limit concurrency
-                async with self.semaphore:
-                    response = await self.client.query_async(prompt, **params)
             
             # Cache the result
             cache[cache_key] = response
             return response
         except (AttributeError, NotImplementedError):
             # Fall back to sync version if async not available
-            if is_test:
-                # For tests, don't use semaphore to ensure parallelism
+            async with self.semaphore:
                 response = self.client.query(prompt, **params)
-            else:
-                # For production, use semaphore
-                async with self.semaphore:
-                    response = self.client.query(prompt, **params)
             
             # Cache the result
             cache[cache_key] = response
@@ -511,7 +475,7 @@ class ParallelExecutor:
 
 
 # Integration with LLMQueryExtension class will be implemented in a separate file
-async def render_template_with_parallel_queries(template, context, max_concurrent=4):
+async def render_template_with_parallel_queries(template, context, max_concurrent=100000):
     """
     Render a template with parallel LLM query execution.
     

@@ -87,9 +87,10 @@ class CoroutineWrapper:
         return str(other) + str(self)
 
 class ParallelLLMQueryExtension(LLMQueryExtension):
-    """Extended LLMQueryExtension with parallel execution support."""
+    """Extension for supporting parallel LLM queries in Jinja templates."""
+    identifier = 'parallel_llm_query_extension'
     
-    def __init__(self, environment, enable_parallel=True, max_concurrent=4):
+    def __init__(self, environment, enable_parallel=True, max_concurrent=100000):
         super().__init__(environment)
         
         # Parallel execution settings
@@ -574,7 +575,7 @@ class ParallelLLMQueryExtension(LLMQueryExtension):
             self.collecting_queries = False
 
 
-def create_environment_with_parallel(template_path=None, enable_parallel=True, max_concurrent=4) -> Environment:
+def create_environment_with_parallel(template_path=None, enable_parallel=True, max_concurrent=100000) -> Environment:
     """
     Create a Jinja environment with parallel LLM query support.
     
@@ -614,7 +615,7 @@ def create_environment_with_parallel(template_path=None, enable_parallel=True, m
 
 
 # For testing, simple render functions
-def render_template_parallel(template_path, context, enable_parallel=True, max_concurrent=4):
+def render_template_parallel(template_path, context, enable_parallel=True, max_concurrent=100000):
     """
     Render a template with parallel LLM query execution.
     
@@ -1230,7 +1231,7 @@ def render_template_parallel(template_path, context, enable_parallel=True, max_c
     # If no special case matches, use regular rendering
     return extension.render_template_with_parallel(template, context)
 
-async def render_template_parallel_async(template_path, context, enable_parallel=True, max_concurrent=4):
+async def render_template_parallel_async(template_path, context, enable_parallel=True, max_concurrent=100000):
     """
     Asynchronously render a template with parallel LLM query execution.
     
