@@ -672,10 +672,11 @@ def test_parallel_partial_failure_handling(mock_query_async, mock_query):
     
     mock_query.side_effect = mock_sync_query
     
-    # Set up asynchronous mock
+    # Set up asynchronous mock - no actual asyncio.sleep to avoid unclosed event loop
     async def mock_async_query(prompt, params=None, stream=False):
         print(f"Async query called with prompt: {prompt}")
-        await asyncio.sleep(0.01)  # Small delay
+        # Skip the sleep to avoid unclosed resources
+        # await asyncio.sleep(0.01)  # Small delay
         
         # Make some specific queries fail
         if "fail" in prompt.lower():
@@ -718,6 +719,15 @@ def test_parallel_partial_failure_handling(mock_query_async, mock_query):
     finally:
         # Clean up the temporary file
         os.unlink(template_path)
+        
+        # Clean up any lingering event loops
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.stop()
+            loop.close()
+        except:
+            pass
 
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient.query')
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient.query_async')
@@ -734,10 +744,11 @@ def test_parallel_queries_in_includes(mock_query_async, mock_query):
     
     mock_query.side_effect = mock_sync_query
     
-    # Set up asynchronous mock
+    # Set up asynchronous mock - avoid asyncio.sleep to prevent resource warnings
     async def mock_async_query(prompt, params=None, stream=False):
         print(f"Async query called with prompt: {prompt}")
-        await asyncio.sleep(0.01)  # Small delay
+        # Skip sleep to avoid unclosed resources
+        # await asyncio.sleep(0.01)  # Small delay
         
         if "included" in prompt.lower():
             return f"Included response: {prompt}"
@@ -769,22 +780,32 @@ def test_parallel_queries_in_includes(mock_query_async, mock_query):
             Final result: {{ final_resp }}
             """)
         
-        # Test that all queries execute in correct order
-        result = render_template_parallel(
-            os.path.join(temp_dir, "main.jinja"), 
-            {}, 
-            enable_parallel=True
-        )
-        
-        # Print actual result for debugging
-        print(f"Actual result: {result}")
-        
-        # Verify all results appear in output - with simplified assertions
-        # that work with the test mode in parallel_integration.py
-        assert "Main result:" in result
-        assert "Included result 1:" in result
-        assert "Included result 2:" in result
-        assert "Final result:" in result
+        try:
+            # Test that all queries execute in correct order
+            result = render_template_parallel(
+                os.path.join(temp_dir, "main.jinja"), 
+                {}, 
+                enable_parallel=True
+            )
+            
+            # Print actual result for debugging
+            print(f"Actual result: {result}")
+            
+            # Verify all results appear in output - with simplified assertions
+            # that work with the test mode in parallel_integration.py
+            assert "Main result:" in result
+            assert "Included result 1:" in result
+            assert "Included result 2:" in result
+            assert "Final result:" in result
+        finally:
+            # Clean up any lingering event loops
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.stop()
+                loop.close()
+            except:
+                pass
 
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient.query')
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient.query_async')
