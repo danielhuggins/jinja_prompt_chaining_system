@@ -49,24 +49,11 @@ def test_global_llmquery_function_basic(mock_env):
     template_str = '{{ llmquery(prompt="Test prompt", model="gpt-4") }}'
     template = env.from_string(template_str)
     
-    try:
-        # Render the template
-        result = template.render()
-        
-        # Verify result
-        assert result == "Test response"
-    finally:
-        # Ensure any pending event loops are properly closed
-        try:
-            loop = asyncio.get_event_loop()
-            # Close any running event loops to prevent ResourceWarning
-            if loop.is_running():
-                loop.stop()
-            if not loop.is_closed():
-                loop.close()
-        except RuntimeError:
-            # No event loop, which is fine
-            pass
+    # Render the template
+    result = template.render()
+    
+    # Verify result
+    assert result == "Test response"
 
 def test_global_llmquery_with_variables(mock_env):
     """Test using the global llmquery function with variables in the prompt."""
