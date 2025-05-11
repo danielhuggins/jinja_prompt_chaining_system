@@ -1,0 +1,12 @@
+---
+# Context file for html_not_escaped.jinja demo
+html_from_context: "<span style='color: blue;'>This HTML comes from the context file</span>"
+complex_html: |
+  <div class="container">
+    <h3>Complex HTML Example</h3>
+    <ul>
+      <li>Item 1 with <em>emphasis</em></li>
+      <li>Item 2 with <strong>strong</strong> text</li>
+      <li>Item 3 with <a href="https://example.com">link</a></li>
+    </ul>
+  </div> 

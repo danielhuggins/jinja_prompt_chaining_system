@@ -1,0 +1,50 @@
+
+
+<h2>HTML Variable Demo</h2>
+<div><h1>HTML Test</h1><p>This is a <strong>bold</strong> test.</p></div>
+
+<h2>HTML From Context</h2>
+<span style='color: blue;'>This HTML comes from the context file</span>
+
+<h2>Complex HTML From Context</h2>
+<div class="container">
+  <h3>Complex HTML Example</h3>
+  <ul>
+    <li>Item 1 with <em>emphasis</em></li>
+    <li>Item 2 with <strong>strong</strong> text</li>
+    <li>Item 3 with <a href="https://example.com">link</a></li>
+  </ul>
+</div> 
+
+<h2>HTML in LLM Query Input</h2>
+The HTML structure provided is simple and mostly well-structured, but there are still a few improvements that can be made for better clarity, maintainability, and accessibility:
+
+1. Use Semantic Tags: The code uses a <div> tag, which is a non-semantic tag. It doesn't provide any information about its content. Consider using semantic tags like <header>, <section>, <article>, <aside> etc. They help improve the accessibility and readability of the code.
+
+2. Add 'lang' attribute: For better accessibility, add a language attribute in the starting <html> tag. This helps screen readers and web crawlers like Google to understand the language of the web page.
+
+3. Add Meta Tags: Meta tags like character encoding
+
+<h2>HTML in LLM Query Output</h2>
+
+LLM Generated HTML:
+Sure, here is a simple HTML button with an onClick event:
+
+```html
+<!DOCTYPE html>
+<html>
+<body>
+
+<button onclick="myFunction()">Click me</button>
+
+<script>
+function myFunction() {
+  alert("Hello, World!");
+}
+</script>
+
+</body>
+</html>
+```
+
+In this example, when the button is clicked, a JavaScript function `myFunction()` is called, which pops up a simple alert saying "Hello, World!". 

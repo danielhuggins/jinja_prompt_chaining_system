@@ -1,0 +1,21 @@
+{% set html_content = "<div><h1>HTML Test</h1><p>This is a <strong>bold</strong> test.</p></div>" %}
+
+<h2>HTML Variable Demo</h2>
+{{ html_content }}
+
+<h2>HTML From Context</h2>
+{{ html_from_context }}
+
+<h2>Complex HTML From Context</h2>
+{{ complex_html }}
+
+<h2>HTML in LLM Query Input</h2>
+{% llmquery model="gpt-4" %}
+Please analyze this HTML structure and suggest improvements:
+{{ html_content }}
+{% endllmquery %}
+
+<h2>HTML in LLM Query Output</h2>
+{% set response = llmquery(prompt="Generate a simple HTML button with onClick event", model="gpt-4") %}
+LLM Generated HTML:
+{{ response }} 

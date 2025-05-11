@@ -1,0 +1,44 @@
+
+
+<h2>HTML Variable Demo</h2>
+<div><h1>HTML Test</h1><p>This is a <strong>bold</strong> test.</p></div>
+
+<h2>HTML From Context</h2>
+<span style='color: blue;'>This HTML comes from the context file</span>
+
+<h2>Complex HTML From Context</h2>
+<div class="container">
+  <h3>Complex HTML Example</h3>
+  <ul>
+    <li>Item 1 with <em>emphasis</em></li>
+    <li>Item 2 with <strong>strong</strong> text</li>
+    <li>Item 3 with <a href="https://example.com">link</a></li>
+  </ul>
+</div> 
+
+<h2>HTML in LLM Query Input</h2>
+The HTML structure provided is quite simple and mostly correct. However, there are some potential improvements that could be made:
+
+1. Adding a Doctype: The HTML document should start with a <!DOCTYPE html> declaration to provide information to the browser about the type of document to expect. 
+
+2. Using Semantic Elements: HTML5 introduces more descriptive HTML tags. These include <header>, <footer>, <section>, <nav>, <article>, <aside> etc. These tags make your HTML easier to read and understand. In your case, you might consider replacing the <div> with the <section> or <article> tag, depending on the context.
+
+3. Include a language attribute: The <html> tag should ideally include a lang attribute
+
+<h2>HTML in LLM Query Output</h2>
+
+LLM Generated HTML:
+<!DOCTYPE html>
+<html>
+<body>
+
+<button onclick="clickEvent()">Click me</button>
+
+<script>
+function clickEvent() {
+  alert("Button was clicked");
+}
+</script>
+
+</body>
+</html> 
