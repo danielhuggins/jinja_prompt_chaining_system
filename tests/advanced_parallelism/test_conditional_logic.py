@@ -19,13 +19,24 @@ def test_changing_conditionals_between_passes(mock_query_async, mock_query):
     that should be executed based on the final condition value.
     """
     
-    # Track execution order and counts
+    # Track execution order, counts and phases
     queries_executed = {}
+    execution_phases = {}
+    
+    # Define phases for tracking when queries are executed
+    COLLECTION_PHASE = "collection"
+    EXECUTION_PHASE = "execution"
+    current_phase = COLLECTION_PHASE
     
     # Set up synchronous mock
     def mock_sync_query(prompt, params=None, stream=False):
         queries_executed[prompt] = queries_executed.get(prompt, 0) + 1
-        print(f"Sync query called with prompt: {prompt}")
+        # Track which phase this execution belongs to
+        if prompt not in execution_phases:
+            execution_phases[prompt] = []
+        execution_phases[prompt].append(current_phase)
+        
+        print(f"Sync query called with prompt: {prompt} (phase: {current_phase})")
         
         # The condition query changes result between calls
         if "condition" in prompt.lower():
@@ -47,7 +58,12 @@ def test_changing_conditionals_between_passes(mock_query_async, mock_query):
     # Set up asynchronous mock with the same behavior
     async def mock_async_query(prompt, params=None, stream=False):
         queries_executed[prompt] = queries_executed.get(prompt, 0) + 1
-        print(f"Async query called with prompt: {prompt}")
+        # Track which phase this execution belongs to
+        if prompt not in execution_phases:
+            execution_phases[prompt] = []
+        execution_phases[prompt].append(current_phase)
+        
+        print(f"Async query called with prompt: {prompt} (phase: {current_phase})")
         await asyncio.sleep(0.01)
         
         # The condition query changes result between calls
@@ -88,13 +104,20 @@ def test_changing_conditionals_between_passes(mock_query_async, mock_query):
         template_path = f.name
     
     try:
+        # First phase - collection
+        # The parallel_integration module should first collect all potential queries
+        # during a "collection" phase
+        print("\n=== COLLECTION PHASE ===")
+        
         # Execute with parallel enabled
+        current_phase = EXECUTION_PHASE  # Switch to execution phase
         result = render_template_parallel(template_path, {}, enable_parallel=True)
         
         # Print debug information
         print("\nQueries executed:")
         for prompt, count in queries_executed.items():
-            print(f"{prompt}: {count} times")
+            phases = execution_phases.get(prompt, [])
+            print(f"{prompt}: {count} times, phases: {phases}")
         
         print("\nTemplate result:")
         print(result)
@@ -104,17 +127,22 @@ def test_changing_conditionals_between_passes(mock_query_async, mock_query):
         true_branch_executed = queries_executed.get("True branch query", 0) 
         false_branch_executed = queries_executed.get("False branch query", 0)
         
-        # The condition query should be executed at least once
-        assert condition_executed > 0, "Condition query not executed"
+        # The condition query should be executed exactly once
+        # In an optimal implementation, it would be executed during execution phase only
+        assert condition_executed == 1, f"Expected condition query to be executed exactly once, but got {condition_executed}"
         
-        # In a perfect implementation, the true branch would never execute if we know
-        # the condition will be false in the final render. However, our current implementation
-        # might collect it during the first pass when condition was "true"
-        # The key is that the final rendered output should match the second pass condition
+        # In an optimal implementation, only the false branch should execute
+        # since the condition will be false in the final render
+        assert false_branch_executed == 1, f"Expected false branch query to be executed exactly once, but got {false_branch_executed}"
+        
+        # The true branch should never execute in an optimal implementation
+        # This is a stronger test than before - we're asserting that the implementation
+        # is optimal and does not waste resources on branches that won't be taken
+        assert true_branch_executed == 0, f"Expected true branch query to never execute, but got {true_branch_executed}"
         
         # Verify content reflects the final condition value (false)
         assert "Condition: false" in result, "Final condition value not reflected in output"
-        assert "False result:" in result, "False branch not rendered"
+        assert "False result: FALSE_BRANCH_RESULT" in result, "False branch not rendered correctly"
         assert "True result:" not in result, "True branch incorrectly rendered"
         
     finally:

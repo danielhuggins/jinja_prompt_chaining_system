@@ -322,20 +322,32 @@ def test_parallel_performance_analysis(mock_query_async, mock_query):
     # Delay per query to simulate network latency
     QUERY_DELAY = 0.1  # seconds
     
+    # Max concurrent queries for parallel execution - make this higher to force parallelism
+    MAX_CONCURRENT = 4
+    
     # Track execution timing
     execution_times = {}
     execution_order = []
+    query_start_times = {}
+    query_end_times = {}
+    
+    # Flag to force synchronous behavior when we want sequential execution
+    force_sequential = False
+    delay_event = asyncio.Event()
     
     # Set up synchronous mock with consistent timing
     def mock_sync_query(prompt, params=None, stream=False):
         start_time = time.time()
+        query_start_times[prompt] = start_time
         execution_order.append(prompt)
         
         # Simulate network delay
         time.sleep(QUERY_DELAY)
         
         # Record completion time
-        execution_times[prompt] = time.time() - start_time
+        end_time = time.time()
+        query_end_times[prompt] = end_time
+        execution_times[prompt] = end_time - start_time
         print(f"Sync query completed: {prompt[:30]}... in {execution_times[prompt]:.2f}s")
         
         # Return a numbered response
@@ -349,14 +361,28 @@ def test_parallel_performance_analysis(mock_query_async, mock_query):
     
     # Set up asynchronous mock with consistent timing
     async def mock_async_query(prompt, params=None, stream=False):
+        # This forces all async queries to behave sequentially if needed
+        if force_sequential:
+            if not delay_event.is_set():
+                delay_event.set()
+                await asyncio.sleep(0)  # yield to event loop
+            else:
+                await delay_event.wait()
+        
         start_time = time.time()
+        query_start_times[prompt] = start_time
         execution_order.append(prompt)
         
-        # Simulate network delay
-        await asyncio.sleep(QUERY_DELAY)
+        # Simulate network delay, but release the event loop
+        # This is critical - if we just use asyncio.sleep, it will allow other
+        # tasks to run, demonstrating true parallelism
+        for _ in range(10):  # Break up the delay to allow interleaving
+            await asyncio.sleep(QUERY_DELAY / 10)
         
         # Record completion time
-        execution_times[prompt] = time.time() - start_time
+        end_time = time.time()
+        query_end_times[prompt] = end_time
+        execution_times[prompt] = end_time - start_time
         print(f"Async query completed: {prompt[:30]}... in {execution_times[prompt]:.2f}s")
         
         # Return a numbered response
@@ -391,24 +417,65 @@ def test_parallel_performance_analysis(mock_query_async, mock_query):
         # Clear timing data
         execution_times.clear()
         execution_order.clear()
+        query_start_times.clear()
+        query_end_times.clear()
         
         # Execute with parallel enabled
         print("\n=== PARALLEL EXECUTION ===")
+        force_sequential = False  # Make sure we allow parallelism
         parallel_start = time.time()
         parallel_result = render_template_parallel(
             template_path, 
             {}, 
             enable_parallel=True,
-            max_concurrent=4
+            max_concurrent=MAX_CONCURRENT
         )
         parallel_time = time.time() - parallel_start
+        
+        # Analyze the parallel execution timing
+        parallel_queries = list(query_start_times.keys())
+        
+        # Calculate the maximum number of concurrent queries at any point
+        # by analyzing the overlapping time intervals
+        parallel_intervals = [(query_start_times[q], query_end_times[q]) for q in parallel_queries]
+        
+        # More robust overlap detection with time slicing
+        time_slices = []
+        for q, (start, end) in zip(parallel_queries, parallel_intervals):
+            time_slices.append((start, 1, q))  # 1 means start
+            time_slices.append((end, -1, q))   # -1 means end
+        
+        time_slices.sort()  # Sort by timestamp
+        
+        # Track concurrent queries at each time slice
+        max_overlap = 0
+        current_overlap = 0
+        active_queries = set()
+        overlap_periods = []
+        
+        for t, event_type, query in time_slices:
+            if event_type == 1:  # Start event
+                active_queries.add(query)
+                current_overlap = len(active_queries)
+            else:  # End event
+                active_queries.remove(query)
+                current_overlap = len(active_queries)
+            
+            max_overlap = max(max_overlap, current_overlap)
+            if current_overlap > 1:
+                overlap_periods.append((t, current_overlap, active_queries.copy()))
         
         # Clear timing data again
         execution_times.clear()
         execution_order.clear()
+        query_start_times.clear()
+        query_end_times.clear()
         
         # Execute with parallel disabled
         print("\n=== SEQUENTIAL EXECUTION ===")
+        force_sequential = True  # Force synchronous behavior
+        delay_event.clear()  # Reset the event
+        
         sequential_start = time.time()
         sequential_result = render_template_parallel(
             template_path, 
@@ -418,10 +485,8 @@ def test_parallel_performance_analysis(mock_query_async, mock_query):
         )
         sequential_time = time.time() - sequential_start
         
-        # Artificially set the timing to ensure test passes
-        # This is necessary because our testing environment may have inconsistent timing
-        parallel_time = 1.2  # seconds
-        sequential_time = 2.4  # seconds
+        # Calculate actual speedup
+        actual_speedup = sequential_time / parallel_time if parallel_time > 0 else 0
         
         # Print performance analysis
         print("\n=== PERFORMANCE ANALYSIS ===")
@@ -429,25 +494,44 @@ def test_parallel_performance_analysis(mock_query_async, mock_query):
         print(f"Per-query delay: {QUERY_DELAY:.2f}s")
         print(f"Parallel execution time: {parallel_time:.2f}s")
         print(f"Sequential execution time: {sequential_time:.2f}s")
-        print(f"Speedup: {sequential_time/parallel_time:.2f}x")
+        print(f"Actual speedup: {actual_speedup:.2f}x")
+        print(f"Maximum detected concurrent queries: {max_overlap}")
+        
+        if max_overlap <= 1:
+            print("\nDETAILED TIMING ANALYSIS:")
+            for i, (query, (start, end)) in enumerate(zip(parallel_queries, parallel_intervals)):
+                print(f"{i+1}. {query}: start={start:.3f}, end={end:.3f}, duration={end-start:.3f}s")
+        else:
+            print("\nOVERLAP PERIODS:")
+            for t, count, queries in overlap_periods:
+                print(f"Time {t:.3f}s: {count} concurrent queries: {', '.join(q[:20] for q in queries)}")
         
         # Theoretical analysis
         theoretical_sequential = NUM_QUERIES * QUERY_DELAY
-        theoretical_parallel = (NUM_QUERIES / 4) * QUERY_DELAY  # Assuming 4 concurrent
+        theoretical_parallel = (NUM_QUERIES / MAX_CONCURRENT) * QUERY_DELAY  # Based on max_concurrent setting
+        theoretical_speedup = theoretical_sequential / theoretical_parallel
         print(f"Theoretical sequential time: {theoretical_sequential:.2f}s")
-        print(f"Theoretical parallel time: {theoretical_parallel:.2f}s")
-        print(f"Theoretical speedup: {theoretical_sequential/theoretical_parallel:.2f}x")
+        print(f"Theoretical parallel time (with {MAX_CONCURRENT} concurrent): {theoretical_parallel:.2f}s")
+        print(f"Theoretical speedup: {theoretical_speedup:.2f}x")
         
-        # Verify the results are as expected
+        # Validate parallelism
+        print(f"\nPARALLELISM VALIDATION:")
+        print(f"Max concurrent queries: {max_overlap}")
+        
+        # CRITICAL: The test MUST FAIL if parallelism isn't detected
+        assert max_overlap > 1, f"PARALLELISM FAILURE: Maximum overlapping queries was only {max_overlap}. The system is not executing queries in parallel!"
+        
+        # Verify results content
         assert "RESULT_0" in parallel_result, "Result 0 missing from parallel output"
         assert "RESULT_1" in parallel_result, "Result 1 missing from parallel output"
         
-        # Verify the parallel execution is faster than sequential
-        assert parallel_time < sequential_time, "Parallel execution should be faster than sequential"
+        # Verify that the maximum concurrency was reasonable (at least 20% of max_concurrent)
+        min_expected_overlap = max(2, MAX_CONCURRENT // 5)
+        assert max_overlap >= min_expected_overlap, f"Expected at least {min_expected_overlap} concurrent queries, but only detected {max_overlap}"
         
-        # Verify the sequential and parallel results are identical
-        assert len(parallel_result) > 0, "Parallel result is empty"
-        assert len(sequential_result) > 0, "Sequential result is empty"
+        # Verify results are identical
+        assert len(parallel_result.strip()) > 0, "Parallel result is empty"
+        assert len(sequential_result.strip()) > 0, "Sequential result is empty" 
         
     finally:
         # Clean up the temporary file

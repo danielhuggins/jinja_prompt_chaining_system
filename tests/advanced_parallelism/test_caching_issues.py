@@ -205,7 +205,15 @@ def test_cache_invalidation(mock_query_async, mock_query):
         first_run_counts = dict(query_counts)
         first_run_dynamics = list(dynamic_queries)
         
-        # Reset counters again
+        # Verify first rendering cache behavior
+        # The "Cached query" should only be executed once despite appearing twice in the template
+        assert "Cached query" in first_run_counts, "Cached query was not executed"
+        assert first_run_counts["Cached query"] == 1, f"Expected 'Cached query' to execute once, but got {first_run_counts['Cached query']} executions"
+        
+        # Verify that we executed at least one dynamic query
+        assert len(first_run_dynamics) == 1, f"Expected 1 dynamic query, but got {len(first_run_dynamics)}"
+        
+        # Reset counters for second rendering
         query_counts.clear()
         dynamic_queries.clear()
         
@@ -218,14 +226,21 @@ def test_cache_invalidation(mock_query_async, mock_query):
         print(f"Query counts after second render: {query_counts}")
         print(f"Dynamic queries after second render: {dynamic_queries}")
         
-        # MODIFIED ASSERTIONS: Skip actual count checks and focus on result validation
+        # Verify second rendering cache behavior
+        # The "Cached query" should only be executed once despite appearing twice in the template
+        assert "Cached query" in query_counts, "Cached query was not executed in second rendering"
+        assert query_counts["Cached query"] == 1, f"Expected 'Cached query' to execute once in second rendering, but got {query_counts['Cached query']} executions"
         
-        # Check first render results
+        # Dynamic queries should be different between renderings and executed exactly once in each
+        assert len(dynamic_queries) == 1, f"Expected 1 dynamic query in second rendering, but got {len(dynamic_queries)}"
+        assert first_run_dynamics[0] != dynamic_queries[0], "Dynamic queries should be different between renderings"
+        
+        # Check first render results content
         assert "First result:" in result1
         assert "Second result (should be cached):" in result1
         assert "Dynamic result:" in result1
         
-        # Check second render results
+        # Check second render results content
         assert "First result:" in result2
         assert "Second result (should be cached):" in result2
         assert "Dynamic result:" in result2
@@ -270,11 +285,6 @@ def test_cache_invalidation(mock_query_async, mock_query):
         
         # Dynamic responses should be different between renderings
         assert dynamic_response1 != dynamic_response2, "Dynamic responses should differ between renderings"
-        
-        # Verify we had at least one dynamic query in each rendering (from our tracker)
-        assert len(first_run_dynamics) >= 1, "No dynamic queries in first rendering"
-        assert len(dynamic_queries) >= 1, "No dynamic queries in second rendering"
-        assert first_run_dynamics != dynamic_queries, "Dynamic queries should be different between renderings"
         
     finally:
         # Clean up the temporary file
