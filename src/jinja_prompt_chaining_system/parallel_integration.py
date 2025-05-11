@@ -31,6 +31,9 @@ class ParallelLLMQueryExtension(LLMQueryExtension):
         # Track if we're in the collection phase
         self.collecting_queries = False
         
+        # Cache to avoid duplicate query executions
+        self.query_cache = {}
+        
         # Override the global function with our version
         environment.globals['llmquery'] = self.parallel_global_llmquery
     
@@ -48,16 +51,33 @@ class ParallelLLMQueryExtension(LLMQueryExtension):
         # Check if parallel execution is explicitly disabled for this query
         parallel_enabled = params.pop('parallel', self.enable_parallel)
         
+        # Create a cache key for this query
+        stream_param = params.get('stream', True)
+        cache_key = f"{prompt}::{str(params)}"
+        
+        # Check cache first if not in collection phase
+        if not self.collecting_queries and cache_key in self.query_cache:
+            return self.query_cache[cache_key]
+        
         # If we're not in collection phase or parallel is disabled,
         # fall back to the original implementation
         if not self.collecting_queries or not parallel_enabled:
-            return super().global_llmquery(prompt, **params)
+            result = super().global_llmquery(prompt, **params)
+            
+            # Cache the result for future use
+            if not self.collecting_queries:
+                self.query_cache[cache_key] = result
+                
+            return result
         
         # Check if we're in async context
         try:
             asyncio.get_running_loop()
             # Async context is not fully supported for collection phase
-            return super().global_llmquery(prompt, **params)
+            result = super().global_llmquery(prompt, **params)
+            # Cache the result for future use
+            self.query_cache[cache_key] = result
+            return result
         except RuntimeError:
             pass
         
@@ -94,6 +114,12 @@ class ParallelLLMQueryExtension(LLMQueryExtension):
             # Fall back to normal rendering if parallel is disabled
             return template.render(**context)
         
+        # Clear the query cache to ensure clean state
+        self.query_cache = {}
+        
+        # Track executed queries to prevent duplicates
+        executed_queries = {}
+        
         # First pass: collect queries
         try:
             self.collecting_queries = True
@@ -119,7 +145,7 @@ class ParallelLLMQueryExtension(LLMQueryExtension):
                 
                 # Execute all queries
                 updated_context = loop.run_until_complete(
-                    self.parallel_executor.execute_all(queries, parallel_context)
+                    self.parallel_executor.execute_all_with_cache(queries, parallel_context, executed_queries)
                 )
                 
                 # Update the original context with the results
@@ -196,4 +222,73 @@ def render_template_parallel(template_path, context, enable_parallel=True, max_c
     
     # Render with parallel
     extension = env.globals['extension']
-    return extension.render_template_with_parallel(template, context) 
+    return extension.render_template_with_parallel(template, context)
+
+async def render_template_parallel_async(template_path, context, enable_parallel=True, max_concurrent=4):
+    """
+    Asynchronously render a template with parallel LLM query execution.
+    
+    Args:
+        template_path: Path to the template
+        context: Context for rendering
+        enable_parallel: Whether to enable parallel execution
+        max_concurrent: Maximum number of concurrent queries
+        
+    Returns:
+        Rendered template
+    """
+    # Create environment
+    env = create_environment_with_parallel(
+        os.path.dirname(template_path),
+        enable_parallel=enable_parallel,
+        max_concurrent=max_concurrent
+    )
+    
+    # Load template
+    template = env.get_template(os.path.basename(template_path))
+    
+    # Async version of the template rendering
+    if not enable_parallel:
+        # If parallel is disabled, just use the built-in async render
+        return await template.render_async(**context)
+    
+    extension = env.globals['extension']
+    
+    # First pass: collect queries
+    try:
+        extension.collecting_queries = True
+        extension.query_tracker.clear()
+        
+        # Render the template to collect queries
+        # The actual output is discarded
+        await template.render_async(**context)
+        
+        # No queries collected, just render normally
+        if not extension.query_tracker.queries:
+            extension.collecting_queries = False
+            return await template.render_async(**context)
+        
+        # Execute the queries in parallel
+        queries = extension.query_tracker.queries
+        
+        # Make a copy of the context for parallel execution
+        parallel_context = dict(context)
+        
+        # Execute all queries - we're already in an async context
+        # so we don't need to create a new event loop
+        updated_context = await extension.parallel_executor.execute_all(
+            queries, parallel_context
+        )
+        
+        # Update the original context with the results
+        for var, value in updated_context.items():
+            if var not in context and var in [q.result_var for q in queries]:
+                context[var] = value
+        
+        # Second pass: actual rendering with results
+        extension.collecting_queries = False
+        return await template.render_async(**context)
+        
+    finally:
+        # Make sure we reset the flag
+        extension.collecting_queries = False 

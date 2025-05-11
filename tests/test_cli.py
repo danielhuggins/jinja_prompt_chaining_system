@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, Mock, MagicMock
 from click.testing import CliRunner
-from jinja_prompt_chaining_system.cli import main, render_template_sync
+from jinja_prompt_chaining_system.cli import main
 
 @pytest.fixture
 def runner():
@@ -27,7 +27,7 @@ def context_file(tmp_path):
     """)
     return context
 
-@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.cli.render_prompt')
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 @patch('jinja_prompt_chaining_system.parser.LLMLogger')
 def test_cli_basic(mock_logger, mock_llm_client, mock_render, runner, template_file, context_file):
@@ -64,7 +64,7 @@ def test_cli_basic(mock_logger, mock_llm_client, mock_render, runner, template_f
     assert result.exit_code == 0
     assert result.output.strip() == "Hello, World!"
 
-@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.cli.render_prompt')
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 @patch('jinja_prompt_chaining_system.parser.LLMLogger')
 def test_cli_with_output(mock_logger, mock_llm_client, mock_render, runner, template_file, context_file, tmp_path):
@@ -74,8 +74,16 @@ def test_cli_with_output(mock_logger, mock_llm_client, mock_render, runner, temp
     client.query.return_value = "Hello, World!"
     mock_llm_client.return_value = client
     
-    # Setup render mock to return a fixed result directly
-    mock_render.return_value = "Hello, World!"
+    # Setup render mock with a side effect that writes to the output file
+    def mock_render_with_side_effect(template_path, context, out=None, **kwargs):
+        result = "Hello, World!"
+        if out:
+            os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+            with open(out, 'w') as f:
+                f.write(result)
+        return result
+    
+    mock_render.side_effect = mock_render_with_side_effect
     
     with runner.isolated_filesystem():
         template_path = os.path.join(os.getcwd(), "test.jinja")
@@ -85,7 +93,6 @@ def test_cli_with_output(mock_logger, mock_llm_client, mock_render, runner, temp
         # Copy files to isolated filesystem
         os.makedirs(os.path.dirname(template_path), exist_ok=True)
         os.makedirs(os.path.dirname(context_path), exist_ok=True)
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
         with open(template_file, "rb") as f:
             with open(template_path, "wb") as tf:
@@ -94,6 +101,10 @@ def test_cli_with_output(mock_logger, mock_llm_client, mock_render, runner, temp
         with open(context_file, "rb") as f:
             with open(context_path, "wb") as cf:
                 cf.write(f.read())
+        
+        # Ensure the output directory exists
+        output_dir = os.path.dirname(output_path)
+        os.makedirs(output_dir, exist_ok=True)
         
         result = runner.invoke(main, [
             template_path,
@@ -106,7 +117,7 @@ def test_cli_with_output(mock_logger, mock_llm_client, mock_render, runner, temp
         with open(output_path, "rb") as f:
             assert f.read().decode().strip() == "Hello, World!"
 
-@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.cli.render_prompt')
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 @patch('jinja_prompt_chaining_system.parser.LLMLogger')
 def test_cli_with_logdir(mock_logger, mock_llm_client, mock_render, runner, template_file, context_file, tmp_path):
@@ -212,7 +223,7 @@ def complex_template_file(tmp_path):
     """)
     return template
 
-@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.cli.render_prompt')
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 @patch('jinja_prompt_chaining_system.parser.LLMLogger')
 def test_cli_complex_template(mock_logger, mock_llm_client, mock_render, runner, complex_template_file, context_file):
@@ -269,7 +280,7 @@ def streaming_template_file(tmp_path):
     """)
     return template
 
-@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.cli.render_prompt')
 @patch('jinja_prompt_chaining_system.parser.LLMClient')
 @patch('jinja_prompt_chaining_system.parser.LLMLogger')
 def test_cli_streaming(mock_logger, mock_llm_client, mock_render, runner, streaming_template_file, context_file):

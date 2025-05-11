@@ -22,6 +22,9 @@ class LLMQueryExtension(Extension):
         self.logger = LLMLogger()
         self.template_name = None
         
+        # Add query cache to prevent duplicate executions
+        self.query_cache = {}
+        
         # Register the global llmquery function
         environment.globals['llmquery'] = self.global_llmquery
         
@@ -80,6 +83,13 @@ class LLMQueryExtension(Extension):
         Returns:
             The response from the LLM
         """
+        # Create a cache key
+        cache_key = f"{prompt}::{str(params)}"
+        
+        # Check if we have this query in cache already
+        if cache_key in self.query_cache:
+            return self.query_cache[cache_key]
+            
         # Check if we're in async context
         running_loop = None
         try:
@@ -159,6 +169,8 @@ class LLMQueryExtension(Extension):
                     }
                     self.logger.complete_response(self.template_name, completion_data)
                 
+                # Cache the response
+                self.query_cache[cache_key] = response_text
                 return response_text
             else:
                 # Non-streaming: Get the complete response at once
@@ -188,6 +200,8 @@ class LLMQueryExtension(Extension):
                     }
                     self.logger.log_request(self.template_name, request, completion_data)
                 
+                # Cache the response
+                self.query_cache[cache_key] = response
                 return response
         except Exception as e:
             raise RuntimeError(f"LLM query error: {str(e)}")
@@ -203,6 +217,13 @@ class LLMQueryExtension(Extension):
         Returns:
             The response from the LLM
         """
+        # Create a cache key
+        cache_key = f"{prompt}::{str(params)}"
+        
+        # Check if we have this query in cache already
+        if cache_key in self.query_cache:
+            return self.query_cache[cache_key]
+            
         prompt_length = len(prompt)
         
         # Prepare request for logging
@@ -270,6 +291,8 @@ class LLMQueryExtension(Extension):
                     }
                     self.logger.complete_response(self.template_name, completion_data)
                 
+                # Cache the response
+                self.query_cache[cache_key] = response_text
                 return response_text
             else:
                 # Non-streaming: Get the complete response at once

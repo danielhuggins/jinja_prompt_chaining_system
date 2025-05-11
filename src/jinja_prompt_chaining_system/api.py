@@ -51,7 +51,9 @@ def render_prompt(
     context: Union[str, Dict[str, Any]],
     out: Optional[Union[str, Path]] = None,
     logdir: Optional[Union[str, Path]] = None,
-    name: Optional[str] = None
+    name: Optional[str] = None,
+    enable_parallel: bool = True,
+    max_concurrent: int = 4
 ) -> str:
     """
     Render a Jinja template containing LLM queries.
@@ -66,6 +68,8 @@ def render_prompt(
         out: Optional path where the rendered output will be saved.
         logdir: Optional directory for storing logs.
         name: Optional name for the run, which will be appended to the run directory name.
+        enable_parallel: Whether to enable parallel execution of LLM queries.
+        max_concurrent: Maximum number of concurrent queries when parallel is enabled.
         
     Returns:
         The rendered prompt output as a string.
@@ -101,20 +105,9 @@ def render_prompt(
         ctx = context
         context_path = None  # No file path since it's a dict
     
-    # Setup Jinja environment
-    template_dir = os.path.dirname(os.path.abspath(template_path))
-    env = create_environment(template_dir)
-    
-    # Load template
-    template_name = os.path.basename(template_path)
-    template_obj = env.get_template(template_name)
-    
-    # Get the extension instance and set template name
-    extension = env.globals['extension']
-    extension.set_template_name(template_path)
-    
     # Setup run-based logging if logdir is provided
     run_id = None
+    run_logger = None
     if logdir:
         os.makedirs(logdir, exist_ok=True)
         run_logger = RunLogger(logdir)
@@ -126,16 +119,21 @@ def render_prompt(
         }
         run_id = run_logger.start_run(metadata=run_metadata, context=ctx, name=name)
         
-        # Get the LLM logger for this run
+        # Get the LLMLogger for this run to pass to the template engine
         llm_logger = run_logger.get_llm_logger(run_id)
-        extension.logger = llm_logger
     
     try:
-        # Render template - use manual sync rendering to avoid async issues
-        result = render_template_sync(template_obj, ctx)
+        # Use parallel rendering by default
+        from .parallel_integration import render_template_parallel
+        result = render_template_parallel(
+            template_path, 
+            ctx,
+            enable_parallel=enable_parallel,
+            max_concurrent=max_concurrent
+        )
         
         # End the run if we started one
-        if logdir and run_id:
+        if logdir and run_id and run_logger:
             run_logger.end_run()
         
         # Handle output
@@ -147,7 +145,7 @@ def render_prompt(
         
         return result
     except Exception as e:
-        if logdir and run_id:
+        if logdir and run_id and run_logger:
             # Still try to end the run even if there was an error
             try:
                 run_logger.end_run()
@@ -160,7 +158,9 @@ async def render_prompt_async(
     context: Union[str, Dict[str, Any]],
     out: Optional[Union[str, Path]] = None,
     logdir: Optional[Union[str, Path]] = None,
-    name: Optional[str] = None
+    name: Optional[str] = None,
+    enable_parallel: bool = True,
+    max_concurrent: int = 4
 ) -> str:
     """
     Asynchronously render a Jinja template containing LLM queries.
@@ -174,6 +174,8 @@ async def render_prompt_async(
         out: Optional path where the rendered output will be saved.
         logdir: Optional directory for storing logs.
         name: Optional name for the run, which will be appended to the run directory name.
+        enable_parallel: Whether to enable parallel execution of LLM queries.
+        max_concurrent: Maximum number of concurrent queries when parallel is enabled.
         
     Returns:
         The rendered prompt output as a string.
@@ -209,20 +211,9 @@ async def render_prompt_async(
         ctx = context
         context_path = None  # No file path since it's a dict
     
-    # Setup Jinja environment
-    template_dir = os.path.dirname(os.path.abspath(template_path))
-    env = create_environment(template_dir)
-    
-    # Load template
-    template_name = os.path.basename(template_path)
-    template_obj = env.get_template(template_name)
-    
-    # Get the extension instance and set template name
-    extension = env.globals['extension']
-    extension.set_template_name(template_path)
-    
     # Setup run-based logging if logdir is provided
     run_id = None
+    run_logger = None
     if logdir:
         os.makedirs(logdir, exist_ok=True)
         run_logger = RunLogger(logdir)
@@ -234,16 +225,23 @@ async def render_prompt_async(
         }
         run_id = run_logger.start_run(metadata=run_metadata, context=ctx, name=name)
         
-        # Get the LLM logger for this run
+        # Get the LLMLogger for this run to pass to the template engine
         llm_logger = run_logger.get_llm_logger(run_id)
-        extension.logger = llm_logger
     
     try:
-        # Render template asynchronously
-        result = await template_obj.render_async(**ctx)
+        # Import async-compatible rendering function
+        from .parallel_integration import render_template_parallel_async
+        
+        # Use the async version for rendering
+        result = await render_template_parallel_async(
+            template_path, 
+            ctx,
+            enable_parallel=enable_parallel,
+            max_concurrent=max_concurrent
+        )
         
         # End the run if we started one
-        if logdir and run_id:
+        if logdir and run_id and run_logger:
             run_logger.end_run()
         
         # Handle output
@@ -255,7 +253,7 @@ async def render_prompt_async(
         
         return result
     except Exception as e:
-        if logdir and run_id:
+        if logdir and run_id and run_logger:
             # Still try to end the run even if there was an error
             try:
                 run_logger.end_run()

@@ -251,6 +251,112 @@ class ParallelExecutor:
         # Should never reach here
         raise RuntimeError("No task completed")
 
+    async def execute_all_with_cache(self, queries: List[Query], context: Dict[str, Any], 
+                                 cache: Dict[str, str] = None) -> Dict[str, Any]:
+        """
+        Execute all queries as concurrently as possible, using a cache to avoid duplicates.
+        
+        Args:
+            queries: List of queries to execute
+            context: Current template context
+            cache: Optional cache of already executed queries
+            
+        Returns:
+            Updated context with query results
+        """
+        if cache is None:
+            cache = {}
+            
+        # Reset state
+        self.pending_queries = list(queries)
+        self.running_queries = set()
+        self.active_tasks = {}
+        self.resolved_variables = set()
+        self.semaphore = asyncio.Semaphore(self.max_concurrent)
+        
+        # Pre-populate resolved variables from context
+        for var in context:
+            self.resolved_variables.add(var)
+        
+        # Check for cached results first
+        still_pending = []
+        for query in self.pending_queries:
+            # Create a cache key from the prompt and parameters
+            cache_key = f"{query.prompt}::{str(query.params)}"
+            if cache_key in cache:
+                # Use cached result
+                context[query.result_var] = cache[cache_key]
+                self.resolved_variables.add(query.result_var)
+            else:
+                still_pending.append(query)
+        
+        self.pending_queries = still_pending
+        
+        # For simple case with no dependencies, just run all in parallel
+        if all(len(query.dependencies) == 0 for query in self.pending_queries):
+            tasks = []
+            for query in self.pending_queries:
+                task = self._execute_query_with_cache(query, context, cache)
+                tasks.append(task)
+            
+            # Wait for all tasks to complete
+            results = await asyncio.gather(*tasks)
+            
+            # Update context with results
+            for query, result in zip(self.pending_queries, results):
+                context[query.result_var] = result
+            
+            return context
+        
+        # For more complex dependency cases, continue with the original implementation
+        # Continue until all queries are processed
+        while self.pending_queries or self.running_queries:
+            # Try to start any ready queries
+            self._start_ready_queries_with_cache(context, cache)
+            
+            # Wait for any running query to complete
+            if self.running_queries:
+                completed_query, result = await self._wait_for_next_completion()
+                
+                # Update context and resolved variables
+                context[completed_query.result_var] = result
+                self.resolved_variables.add(completed_query.result_var)
+                self.running_queries.remove(completed_query)
+        
+        return context
+        
+    def _start_ready_queries_with_cache(self, context: Dict[str, Any], cache: Dict[str, str]):
+        """Start all queries that have their dependencies met, using the cache."""
+        still_pending = []
+        
+        for query in self.pending_queries:
+            if self._is_query_ready(query):
+                task = asyncio.create_task(self._execute_query_with_cache(query, context, cache))
+                self.active_tasks[query.result_var] = task
+                self.running_queries.add(query)
+            else:
+                still_pending.append(query)
+        
+        self.pending_queries = still_pending
+        
+    async def _execute_query_with_cache(self, query: Query, context: Dict[str, Any], 
+                                      cache: Dict[str, str]) -> str:
+        """Execute a single query, with caching to avoid duplicates."""
+        # Create a cache key from the prompt and parameters
+        cache_key = f"{query.prompt}::{str(query.params)}"
+        
+        # Check cache first
+        if cache_key in cache:
+            return cache[cache_key]
+            
+        # Not in cache, execute the query
+        async with self.semaphore:
+            result = self.client.query(query.prompt, query.params, stream=False)
+            
+            # Save in cache for future use
+            cache[cache_key] = result
+            return result
+
 
 # Integration with LLMQueryExtension class will be implemented in a separate file
 async def render_template_with_parallel_queries(template, context, max_concurrent=4):
