@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import patch, Mock
 from jinja2 import Environment, FileSystemLoader
 from jinja_prompt_chaining_system.parser import LLMQueryExtension
+from jinja_prompt_chaining_system.parallel_integration import ParallelLLMQueryExtension
 
 @pytest.fixture
 def mock_llm_client():
@@ -25,9 +26,9 @@ def create_test_environment(template_dir):
     env = Environment(
         loader=FileSystemLoader(template_dir),
         enable_async=True,
-        extensions=[LLMQueryExtension]
+        extensions=[ParallelLLMQueryExtension]
     )
-    env.globals['extension'] = env.extensions[LLMQueryExtension.identifier]
+    env.globals['extension'] = env.extensions[ParallelLLMQueryExtension.identifier]
     return env
 
 @pytest.mark.asyncio

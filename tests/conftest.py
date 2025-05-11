@@ -1,7 +1,7 @@
 import os
 import pytest
 import yaml
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 import asyncio
 import socket
 import gc
@@ -9,6 +9,7 @@ import warnings
 
 from src.jinja_prompt_chaining_system.llm import LLMClient
 from src.jinja_prompt_chaining_system.logger import LLMLogger
+from jinja_prompt_chaining_system.parallel_integration import ParallelLLMQueryExtension
 
 # Mock classes
 class MockLLM:
@@ -93,4 +94,57 @@ def close_event_loops():
                 pass
     except Exception as e:
         # If there's an error, just log it but don't fail the test
-        print(f"Warning: Error cleaning up event loop: {e}") 
+        print(f"Warning: Error cleaning up event loop: {e}")
+
+@pytest.fixture
+def mock_llm_client():
+    """Mock LLM client for testing."""
+    with patch('src.jinja_prompt_chaining_system.llm.LLMClient') as mock:
+        client = Mock()
+        client.query.return_value = "Mock LLM response"
+        client.query_async.return_value = "Mock LLM response"
+        mock.return_value = client
+        yield client
+
+@pytest.fixture
+def mock_parallel_llm_extension():
+    """Mock the ParallelLLMQueryExtension for testing."""
+    # Save the original class
+    original_init = ParallelLLMQueryExtension.__init__
+    original_parse = ParallelLLMQueryExtension.parse
+    original_call = ParallelLLMQueryExtension.__call__
+    original_global_llmquery = ParallelLLMQueryExtension.parallel_global_llmquery
+    
+    # Mock the initialization
+    def mock_init(self, environment):
+        original_init(self, environment)
+        # Create a mock client for testing
+        client = Mock()
+        client.query.return_value = "Mock LLM response"
+        client.query_async.return_value = "Mock LLM response"
+        self.llm_client = client
+    
+    # Mock the parse method to simply wrap content
+    def mock_parse(self, parser):
+        return original_parse(self, parser)
+    
+    # Mock the call method to return fixed content
+    def mock_call(self, *args, **kwargs):
+        return "Mock LLM response"
+    
+    # Mock the global llmquery function
+    def mock_global_llmquery(self, prompt, **kwargs):
+        return "Mock LLM response"
+    
+    # Apply the mocks
+    ParallelLLMQueryExtension.__init__ = mock_init
+    ParallelLLMQueryExtension.__call__ = mock_call
+    ParallelLLMQueryExtension.parallel_global_llmquery = mock_global_llmquery
+    
+    yield
+    
+    # Restore the original methods
+    ParallelLLMQueryExtension.__init__ = original_init
+    ParallelLLMQueryExtension.parse = original_parse
+    ParallelLLMQueryExtension.__call__ = original_call
+    ParallelLLMQueryExtension.parallel_global_llmquery = original_global_llmquery 

@@ -3,6 +3,7 @@ import asyncio
 from unittest.mock import Mock, patch, MagicMock
 from jinja_prompt_chaining_system import create_environment
 from jinja_prompt_chaining_system.parser import LLMQueryExtension
+from jinja_prompt_chaining_system.parallel_integration import ParallelLLMQueryExtension
 
 @pytest.fixture
 def mock_llm_client():
@@ -25,7 +26,7 @@ class TestLLMQueryExtension:
     def test_llmquery_tag_basic(self, mock_llm_client, mock_logger):
         """Test basic functionality of the llmquery tag."""
         env = create_environment()
-        extension = [ext for ext in env.extensions.values() if isinstance(ext, LLMQueryExtension)][0]
+        extension = [ext for ext in env.extensions.values() if isinstance(ext, ParallelLLMQueryExtension)][0]
         extension.set_template_name("test.jinja")
         
         # Directly call _llmquery with parameters and a mock caller
@@ -48,7 +49,7 @@ class TestLLMQueryExtension:
     def test_llmquery_tag_parameters(self, mock_llm_client, mock_logger):
         """Test different parameter formats in llmquery tag."""
         env = create_environment()
-        extension = [ext for ext in env.extensions.values() if isinstance(ext, LLMQueryExtension)][0]
+        extension = [ext for ext in env.extensions.values() if isinstance(ext, ParallelLLMQueryExtension)][0]
         extension.set_template_name("test.jinja")
         
         # Test with different parameter sets
@@ -89,7 +90,7 @@ class TestLLMQueryExtension:
     def test_llmquery_tag_with_template_variables(self, mock_llm_client, mock_logger):
         """Test llmquery tag with template variables in prompt."""
         env = create_environment()
-        extension = [ext for ext in env.extensions.values() if isinstance(ext, LLMQueryExtension)][0]
+        extension = [ext for ext in env.extensions.values() if isinstance(ext, ParallelLLMQueryExtension)][0]
         extension.set_template_name("test.jinja")
         
         # Create a prompt that would result from template rendering
@@ -121,7 +122,7 @@ Here are some items:
         mock_llm_client.query.return_value = "Hello, World!"
         
         env = create_environment()
-        extension = [ext for ext in env.extensions.values() if isinstance(ext, LLMQueryExtension)][0]
+        extension = [ext for ext in env.extensions.values() if isinstance(ext, ParallelLLMQueryExtension)][0]
         extension.set_template_name("test.jinja")
         
         mock_caller = Mock(return_value="Simple prompt")
@@ -136,7 +137,7 @@ Here are some items:
     def test_llmquery_tag_default_parameters(self, mock_llm_client, mock_logger):
         """Test default parameter functionality by checking how parameters are handled in the LLMClient."""
         env = create_environment()
-        extension = [ext for ext in env.extensions.values() if isinstance(ext, LLMQueryExtension)][0]
+        extension = [ext for ext in env.extensions.values() if isinstance(ext, ParallelLLMQueryExtension)][0]
         extension.set_template_name("test_defaults.jinja")
         
         # Call with minimal parameters to use defaults
@@ -178,7 +179,7 @@ Here are some items:
         mock_llm_client.query.side_effect = Exception("API Error")
         
         env = create_environment()
-        extension = [ext for ext in env.extensions.values() if isinstance(ext, LLMQueryExtension)][0]
+        extension = [ext for ext in env.extensions.values() if isinstance(ext, ParallelLLMQueryExtension)][0]
         extension.set_template_name("test.jinja")
         
         mock_caller = Mock(return_value="Prompt that causes an error")

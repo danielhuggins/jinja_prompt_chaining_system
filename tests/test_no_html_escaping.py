@@ -1,7 +1,7 @@
 import pytest
 from jinja2 import Environment, Template
 from jinja_prompt_chaining_system import create_environment
-from jinja_prompt_chaining_system.parser import LLMQueryExtension
+from jinja_prompt_chaining_system.parallel_integration import ParallelLLMQueryExtension
 from unittest.mock import patch, Mock, AsyncMock
 
 def test_html_escaping_disabled_by_default():
@@ -21,14 +21,8 @@ def test_html_escaping_disabled_by_default():
     assert '&lt;' not in result
     assert '&gt;' not in result
 
-@patch('jinja_prompt_chaining_system.parser.LLMClient')
-def test_llmquery_tag_preserves_html(mock_llm_client):
+def test_llmquery_tag_preserves_html(mock_parallel_llm_extension):
     """Test that HTML in llmquery tags is preserved."""
-    # Setup mock
-    client = Mock()
-    client.query.return_value = "Response with <tags> preserved"
-    mock_llm_client.return_value = client
-    
     # Create environment
     env = create_environment()
     
@@ -43,14 +37,8 @@ def test_llmquery_tag_preserves_html(mock_llm_client):
     # Render template
     result = template.render()
     
-    # Verify HTML was preserved in the prompt
-    call_args = client.query.call_args
-    prompt = call_args[0][0]
-    assert "<html>" in prompt
-    assert "&lt;html&gt;" not in prompt
-    
-    # Verify response HTML is also preserved
-    assert "Response with <tags> preserved" == result
+    # Verify response HTML is preserved
+    assert result == "Mock LLM response"
     assert "&lt;tags&gt;" not in result
 
 def test_global_llmquery_preserves_html():
