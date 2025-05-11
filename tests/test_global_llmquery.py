@@ -5,6 +5,7 @@ from unittest.mock import patch, Mock, AsyncMock
 from jinja2 import Environment, FileSystemLoader
 from jinja_prompt_chaining_system.parser import LLMQueryExtension
 from jinja_prompt_chaining_system.logger import RunLogger, LLMLogger
+import asyncio
 
 class MockLLM:
     """Mock LLM client for testing."""
@@ -48,11 +49,24 @@ def test_global_llmquery_function_basic(mock_env):
     template_str = '{{ llmquery(prompt="Test prompt", model="gpt-4") }}'
     template = env.from_string(template_str)
     
-    # Render the template
-    result = template.render()
-    
-    # Verify result
-    assert result == "Test response"
+    try:
+        # Render the template
+        result = template.render()
+        
+        # Verify result
+        assert result == "Test response"
+    finally:
+        # Ensure any pending event loops are properly closed
+        try:
+            loop = asyncio.get_event_loop()
+            # Close any running event loops to prevent ResourceWarning
+            if loop.is_running():
+                loop.stop()
+            if not loop.is_closed():
+                loop.close()
+        except RuntimeError:
+            # No event loop, which is fine
+            pass
 
 def test_global_llmquery_with_variables(mock_env):
     """Test using the global llmquery function with variables in the prompt."""
