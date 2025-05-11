@@ -54,7 +54,7 @@ def render_prompt(
     logdir: Optional[Union[str, Path]] = None,
     name: Optional[str] = None,
     enable_parallel: bool = True,
-    max_concurrent: int = 4
+    max_concurrent: int = 100000
 ) -> str:
     """
     Render a Jinja template containing LLM queries.
