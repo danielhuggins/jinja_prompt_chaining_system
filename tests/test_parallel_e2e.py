@@ -119,53 +119,7 @@ def test_improved_parallel_execution_basic(mock_query_async, mock_query):
         # Clean up the temporary file
         os.unlink(template_path)
 
-@pytest.mark.skip("Skipping E2E test: requires proper mocking of parallel template rendering")
-@patch('src.jinja_prompt_chaining_system.llm.LLMClient')
-def test_parallel_execution_basic(mock_llm_client):
-    """Test parallel execution with independent queries."""
-    # Setup mock LLM client
-    client = Mock()
-    client.query.side_effect = [
-        "First response",
-        "Second response"
-    ]
-    
-    # Setup async mock method
-    async_query_mock = AsyncMock()
-    async_query_mock.side_effect = [
-        "First response",
-        "Second response"
-    ]
-    client.query_async = async_query_mock
-    
-    mock_llm_client.return_value = client
-    
-    # Create a temporary template file
-    with tempfile.NamedTemporaryFile(mode='w+', suffix='.jinja', delete=False) as f:
-        f.write("""
-        {% set resp1 = llmquery(prompt="Query 1", model="gpt-4") %}
-        First result: {{ resp1 }}
-        
-        {% set resp2 = llmquery(prompt="Query 2", model="gpt-4") %}
-        Second result: {{ resp2 }}
-        """)
-        template_path = f.name
-    
-    try:
-        # Render the template with parallel execution
-        result = render_template_parallel(template_path, {}, enable_parallel=True, max_concurrent=2)
-        
-        # Check the results - the exact content may vary based on template whitespace handling
-        assert "First result: First response" in result
-        assert "Second result: Second response" in result
-        
-        # We expect the async method to be used when parallel is enabled
-        # However, there are two phases: collection and execution, so call counts will vary
-        assert (client.query_async.call_count > 0 or client.query.call_count > 0), \
-            "Neither query method was called"
-    finally:
-        # Clean up the temporary file
-        os.unlink(template_path)
+
 
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient.query')
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient.query_async')
@@ -225,45 +179,7 @@ def test_direct_patching_with_dependencies(mock_query_async, mock_query):
         # Clean up the temporary file
         os.unlink(template_path)
 
-@pytest.mark.skip("Skipping E2E test: requires proper mocking of parallel template rendering")
-@patch('src.jinja_prompt_chaining_system.llm.LLMClient')
-def test_parallel_execution_disabled(mock_llm_client):
-    """Test with parallel execution disabled."""
-    # Setup mock LLM client
-    client = Mock()
-    client.query.side_effect = [
-        "First response",
-        "Second response"
-    ]
-    client.query_async = AsyncMock()
-    mock_llm_client.return_value = client
-    
-    # Create a temporary template file
-    with tempfile.NamedTemporaryFile(mode='w+', suffix='.jinja', delete=False) as f:
-        f.write("""
-        {% set resp1 = llmquery(prompt="Query 1", model="gpt-4") %}
-        First result: {{ resp1 }}
-        
-        {% set resp2 = llmquery(prompt="Query 2", model="gpt-4") %}
-        Second result: {{ resp2 }}
-        """)
-        template_path = f.name
-    
-    try:
-        # Render the template with parallel execution disabled
-        result = render_template_parallel(template_path, {}, enable_parallel=False)
-        
-        # Check the results
-        assert "First result: First response" in result
-        assert "Second result: Second response" in result
-        
-        # When parallel is disabled, only the synchronous query method should be used
-        assert client.query.call_count > 0, "Sync query method was not called"
-        assert client.query_async.call_count == 0, "Async query method was called when parallel is disabled"
-        
-    finally:
-        # Clean up the temporary file
-        os.unlink(template_path)
+
 
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient')
 @patch('src.jinja_prompt_chaining_system.parallel.LLMClient')
@@ -307,76 +223,7 @@ def test_improved_parallel_query_opt_out(mock_parallel_client, mock_parser_clien
         # Clean up the temporary file
         os.unlink(template_path)
 
-@pytest.mark.skip("Skipping E2E test: requires proper mocking of parallel template rendering")
-@patch('src.jinja_prompt_chaining_system.llm.LLMClient')
-def test_multiple_concurrent_queries(mock_llm_client):
-    """Test multiple concurrent queries with a concurrency limit."""
-    MAX_CONCURRENT = 3
-    NUM_QUERIES = 6
-    QUERY_DELAY = 0.1  # seconds
-    
-    # Setup mock LLM client with delayed execution
-    client = Mock()
-    
-    # Create a delayed mock function that records timing
-    async def delayed_async_query(prompt, **params):
-        await asyncio.sleep(QUERY_DELAY)
-        return f"Response to {prompt}"
-    
-    client.query_async = AsyncMock(side_effect=delayed_async_query)
-    mock_llm_client.return_value = client
-    
-    # Create a temporary template with multiple independent queries
-    with tempfile.NamedTemporaryFile(mode='w+', suffix='.jinja', delete=False) as f:
-        template_content = ""
-        for i in range(NUM_QUERIES):
-            template_content += f"""
-            {{% set resp{i} = llmquery(prompt="Query {i}", model="gpt-4") %}}
-            Result {i}: {{{{ resp{i} }}}}
-            """
-        f.write(template_content)
-        template_path = f.name
-    
-    try:
-        # Measure execution time
-        start_time = time.time()
-        
-        # Render with max_concurrent limit
-        result = render_template_parallel(template_path, {}, enable_parallel=True, max_concurrent=MAX_CONCURRENT)
-        
-        execution_time = time.time() - start_time
-        
-        # Check all responses are in the result
-        for i in range(NUM_QUERIES):
-            assert f"Result {i}: Response to Query {i}" in result
-        
-        # Calculate expected execution time
-        # With MAX_CONCURRENT=3 and NUM_QUERIES=6, should take 2 batches * QUERY_DELAY time
-        theoretical_time = (NUM_QUERIES / MAX_CONCURRENT) * QUERY_DELAY
-        
-        # Print timing information
-        print(f"\n=== CONCURRENCY E2E TEST RESULTS ===")
-        print(f"Number of queries: {NUM_QUERIES}")
-        print(f"Max concurrent: {MAX_CONCURRENT}")
-        print(f"Query delay: {QUERY_DELAY:.2f}s")
-        print(f"Theoretical time: {theoretical_time:.2f}s")
-        print(f"Actual time: {execution_time:.2f}s")
-        print(f"======================================")
-        
-        # Allow some buffer for overhead
-        max_allowed_time = theoretical_time * 2.0  # More generous for E2E test
-        min_allowed_time = theoretical_time * 0.8
-        
-        # Execution time should be close to theoretical time
-        assert execution_time < max_allowed_time, \
-            f"Execution took too long ({execution_time:.2f}s), expected ~{theoretical_time:.2f}s"
-        
-        # Execution shouldn't be too fast (which would mean concurrency limit wasn't respected)
-        assert execution_time > min_allowed_time, \
-            f"Execution too fast ({execution_time:.2f}s), suggesting max_concurrent wasn't respected"
-    finally:
-        # Clean up the temporary file
-        os.unlink(template_path) 
+ 
 
 @patch('src.jinja_prompt_chaining_system.llm.LLMClient')
 @patch('src.jinja_prompt_chaining_system.parallel.LLMClient')
