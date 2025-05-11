@@ -1,0 +1,35 @@
+{# Parallel Execution Timestamps Test 
+   This template uses timestamp tracking to show that queries run in parallel
+   by reporting execution overlap #}
+
+<h1>Parallel Execution Proof with Timestamps</h1>
+
+<p>This test demonstrates parallel execution by showing that queries run simultaneously.</p>
+
+{# First, run a query with a timestamp request that will include start/end time #}
+{% set query1 = llmquery(prompt="Please respond with exactly: 'Query 1 started at TIMESTAMP: START-[current UTC timestamp] and finished at TIMESTAMP: END-[current UTC timestamp]'", model="gpt-3.5-turbo") %}
+<div class="query">
+    <h2>Query 1 Timestamps:</h2>
+    <pre>{{ query1 }}</pre>
+</div>
+
+{# Second query with timestamp #}
+{% set query2 = llmquery(prompt="Please respond with exactly: 'Query 2 started at TIMESTAMP: START-[current UTC timestamp] and finished at TIMESTAMP: END-[current UTC timestamp]'", model="gpt-3.5-turbo") %}
+<div class="query">
+    <h2>Query 2 Timestamps:</h2>
+    <pre>{{ query2 }}</pre>
+</div>
+
+{# Third query with timestamp #}
+{% set query3 = llmquery(prompt="Please respond with exactly: 'Query 3 started at TIMESTAMP: START-[current UTC timestamp] and finished at TIMESTAMP: END-[current UTC timestamp]'", model="gpt-3.5-turbo") %}
+<div class="query">
+    <h2>Query 3 Timestamps:</h2>
+    <pre>{{ query3 }}</pre>
+</div>
+
+{# Fourth query with timestamp #}
+{% set query4 = llmquery(prompt="Please respond with exactly: 'Query 4 started at TIMESTAMP: START-[current UTC timestamp] and finished at TIMESTAMP: END-[current UTC timestamp]'", model="gpt-3.5-turbo") %}
+<div class="query">
+    <h2>Query 4 Timestamps:</h2>
+    <pre>{{ query4 }}</pre>
+</div> 

@@ -1,0 +1,43 @@
+{# Parallel Execution Timing Demo #}
+{# This template has multiple independent queries that can run in parallel #}
+
+<h1>Parallel Execution Timing Demo</h1>
+
+{# Add a timestamp at the beginning #}
+{% set start_time = now() %}
+Start time: {{ start_time }}
+
+<h2>Multiple Independent Queries</h2>
+
+{# These queries are completely independent and can run in parallel #}
+<h3>Query 1 Results</h3>
+{% set query1_start = now() %}
+{% set resp1 = llmquery(prompt="Generate a random recipe name and one sentence description. Add [START TIMESTAMP: " + query1_start|string + "]", model="gpt-4-mini") %}
+Query 1 start: {{ query1_start }}
+Query 1 end: {{ now() }}
+{{ resp1 }}
+
+<h3>Query 2 Results</h3>
+{% set query2_start = now() %}
+{% set resp2 = llmquery(prompt="Generate a random book title and one sentence description. Add [START TIMESTAMP: " + query2_start|string + "]", model="gpt-4-mini") %}
+Query 2 start: {{ query2_start }}
+Query 2 end: {{ now() }}
+{{ resp2 }}
+
+<h3>Query 3 Results</h3>
+{% set query3_start = now() %}
+{% set resp3 = llmquery(prompt="Generate a random product name and one sentence description. Add [START TIMESTAMP: " + query3_start|string + "]", model="gpt-4-mini") %}
+Query 3 start: {{ query3_start }}
+Query 3 end: {{ now() }}
+{{ resp3 }}
+
+<h3>Query 4 Results</h3>
+{% set query4_start = now() %}
+{% set resp4 = llmquery(prompt="Generate a random country name and one sentence about its geography. Add [START TIMESTAMP: " + query4_start|string + "]", model="gpt-4-mini") %}
+Query 4 start: {{ query4_start }}
+Query 4 end: {{ now() }}
+{{ resp4 }}
+
+<h2>Timing Summary</h2>
+End time: {{ now() }}
+Total execution time: {{ now() - start_time }} seconds 
