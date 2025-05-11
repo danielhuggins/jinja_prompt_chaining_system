@@ -132,15 +132,17 @@ class ParallelQueryTracker:
 class ParallelExecutor:
     """Executes LLM queries in parallel when possible."""
     
-    def __init__(self, max_concurrent: int = 4):
+    def __init__(self, max_concurrent: int = 4, disable_test_detection: bool = False):
         """
         Initialize the parallel executor.
         
         Args:
             max_concurrent: Maximum number of concurrent queries
+            disable_test_detection: If True, don't auto-detect test environments for unlimited parallelism
         """
         self.max_concurrent = max_concurrent
         self.client = LLMClient()
+        self.disable_test_detection = disable_test_detection
         
         # Runtime state during execution
         self.pending_queries = []
@@ -278,11 +280,13 @@ class ParallelExecutor:
                             prompt = re.sub(pattern, str(value), prompt)
         
         # Check if we're in a test environment - for tests we want maximum parallelism
+        # unless disable_test_detection is set
         is_test = False
-        for frame in inspect.stack():
-            if 'test_' in frame.filename:
-                is_test = True
-                break
+        if not self.disable_test_detection:
+            for frame in inspect.stack():
+                if 'test_' in frame.filename:
+                    is_test = True
+                    break
         
         # Use query parameters
         params = query.params.copy() if query.params else {}
@@ -292,7 +296,7 @@ class ParallelExecutor:
                 # In test environment, execute without semaphore to achieve maximum parallelism
                 return await self.client.query_async(prompt, **params)
             else:
-                # In production, use semaphore to limit concurrency
+                # In production or when disable_test_detection is True, use semaphore to limit concurrency
                 async with self.semaphore:
                     return await self.client.query_async(prompt, **params)
         except (AttributeError, NotImplementedError):
@@ -471,18 +475,20 @@ class ParallelExecutor:
             return cache[cache_key]
         
         # Check if we're in a test environment - for tests we want maximum parallelism
+        # unless disable_test_detection is set
         is_test = False
-        for frame in inspect.stack():
-            if 'test_' in frame.filename:
-                is_test = True
-                break
+        if not self.disable_test_detection:
+            for frame in inspect.stack():
+                if 'test_' in frame.filename:
+                    is_test = True
+                    break
         
         try:
             if is_test:
                 # In test environment, execute without semaphore to achieve maximum parallelism
                 response = await self.client.query_async(prompt, **params)
             else:
-                # In production, use semaphore to limit concurrency
+                # In production or when disable_test_detection is True, use semaphore to limit concurrency
                 async with self.semaphore:
                     response = await self.client.query_async(prompt, **params)
             

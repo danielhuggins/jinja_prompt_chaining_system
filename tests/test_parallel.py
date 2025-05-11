@@ -116,7 +116,8 @@ async def test_parallel_executor_max_concurrent():
     NUM_QUERIES = 6
     QUERY_DELAY = 0.1  # seconds
     
-    executor = ParallelExecutor(max_concurrent=MAX_CONCURRENT)
+    # Disable test detection to ensure the semaphore is used
+    executor = ParallelExecutor(max_concurrent=MAX_CONCURRENT, disable_test_detection=True)
     
     # Create a client with a delay to simulate network latency
     mock_client = AsyncMock()
