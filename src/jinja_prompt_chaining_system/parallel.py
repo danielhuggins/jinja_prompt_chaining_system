@@ -7,8 +7,9 @@ when possible, falling back to sequential execution when dependencies exist.
 
 import re
 import asyncio
+import inspect
 import uuid
-from typing import Dict, Set, List, Any, Optional, Tuple, Awaitable
+from typing import Dict, Set, List, Any, Optional, Tuple, Awaitable, Union
 from dataclasses import dataclass
 
 from .llm import LLMClient
@@ -121,6 +122,12 @@ class ParallelExecutor:
         self.active_tasks = {}  # Maps result_var to asyncio Task
         self.resolved_variables = set()
         self.semaphore = None  # Will be initialized in execute_all
+    
+    async def resolve_result(self, result):
+        """Safely resolve a result, whether it's a coroutine or not."""
+        if inspect.iscoroutine(result):
+            return await result
+        return result
     
     async def execute_all(self, queries: List[Query], context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -254,19 +261,20 @@ class ParallelExecutor:
     async def execute_all_with_cache(self, queries: List[Query], context: Dict[str, Any], 
                                  cache: Dict[str, str] = None) -> Dict[str, Any]:
         """
-        Execute all queries as concurrently as possible, using a cache to avoid duplicates.
+        Execute all queries as concurrently as possible, using cache when available.
         
         Args:
             queries: List of queries to execute
             context: Current template context
-            cache: Optional cache of already executed queries
+            cache: Optional cache of previously executed queries
             
         Returns:
             Updated context with query results
         """
+        # Initialize cache if not provided
         if cache is None:
             cache = {}
-            
+        
         # Reset state
         self.pending_queries = list(queries)
         self.running_queries = set()
@@ -278,24 +286,10 @@ class ParallelExecutor:
         for var in context:
             self.resolved_variables.add(var)
         
-        # Check for cached results first
-        still_pending = []
-        for query in self.pending_queries:
-            # Create a cache key from the prompt and parameters
-            cache_key = f"{query.prompt}::{str(query.params)}"
-            if cache_key in cache:
-                # Use cached result
-                context[query.result_var] = cache[cache_key]
-                self.resolved_variables.add(query.result_var)
-            else:
-                still_pending.append(query)
-        
-        self.pending_queries = still_pending
-        
         # For simple case with no dependencies, just run all in parallel
-        if all(len(query.dependencies) == 0 for query in self.pending_queries):
+        if all(len(query.dependencies) == 0 for query in queries):
             tasks = []
-            for query in self.pending_queries:
+            for query in queries:
                 task = self._execute_query_with_cache(query, context, cache)
                 tasks.append(task)
             
@@ -303,12 +297,14 @@ class ParallelExecutor:
             results = await asyncio.gather(*tasks)
             
             # Update context with results
-            for query, result in zip(self.pending_queries, results):
-                context[query.result_var] = result
+            for query, result in zip(queries, results):
+                # Ensure the result is not a coroutine
+                resolved_result = await self.resolve_result(result)
+                context[query.result_var] = resolved_result
             
             return context
         
-        # For more complex dependency cases, continue with the original implementation
+        # For more complex dependency cases, continue with the dependency-aware implementation
         # Continue until all queries are processed
         while self.pending_queries or self.running_queries:
             # Try to start any ready queries
@@ -318,8 +314,11 @@ class ParallelExecutor:
             if self.running_queries:
                 completed_query, result = await self._wait_for_next_completion()
                 
+                # Ensure the result is not a coroutine
+                resolved_result = await self.resolve_result(result)
+                
                 # Update context and resolved variables
-                context[completed_query.result_var] = result
+                context[completed_query.result_var] = resolved_result
                 self.resolved_variables.add(completed_query.result_var)
                 self.running_queries.remove(completed_query)
         
@@ -341,21 +340,37 @@ class ParallelExecutor:
         
     async def _execute_query_with_cache(self, query: Query, context: Dict[str, Any], 
                                       cache: Dict[str, str]) -> str:
-        """Execute a single query, with caching to avoid duplicates."""
-        # Create a cache key from the prompt and parameters
-        cache_key = f"{query.prompt}::{str(query.params)}"
-        
-        # Check cache first
-        if cache_key in cache:
-            return cache[cache_key]
-            
-        # Not in cache, execute the query
+        """Execute a single query with caching."""
         async with self.semaphore:
-            result = self.client.query(query.prompt, query.params, stream=False)
+            # Create a cache key for this query
+            cache_key = f"{query.prompt}::{str(query.params)}"
             
-            # Save in cache for future use
-            cache[cache_key] = result
-            return result
+            # Check cache first
+            if cache_key in cache:
+                return cache[cache_key]
+            
+            # Evaluate the prompt with context if it contains template variables
+            if "{{" in query.prompt and "}}" in query.prompt:
+                # Simple template substitution for dependencies
+                prompt = query.prompt
+                for var_name in query.dependencies:
+                    if var_name in context:
+                        placeholder = f"{{{{{var_name}}}}}"
+                        value = context[var_name]
+                        # Ensure the value is not a coroutine
+                        if inspect.iscoroutine(value):
+                            value = await value
+                        prompt = prompt.replace(placeholder, str(value))
+            else:
+                prompt = query.prompt
+            
+            # Execute the query
+            response = await self.client.query_async(prompt, query.params, stream=False)
+            
+            # Cache the result
+            cache[cache_key] = response
+            
+            return response
 
 
 # Integration with LLMQueryExtension class will be implemented in a separate file
