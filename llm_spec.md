@@ -58,11 +58,26 @@ jinja_prompt_chaining_system/        ← Git repo & distribution name
 
 ```bash
 jinja-run path/to/template.jinja \
-  --context ctx.yaml \
+  [key1=value1 key2=value2 ...] \
+  [--context ctx.yaml] \
   [--out out.txt] \
   [--logdir logs/] \
   [--name "experiment-1"]
 ```
+
+The CLI supports two methods for providing context data:
+
+1. **Inline context** as key-value pairs (must come before other options):
+   * Specify key-value pairs directly on the command line
+   * Example: `name=World model=gpt-4o-mini temperature=0.7`
+   * Values are parsed as YAML (strings, numbers, booleans, etc.)
+   * Complex values should be quoted: `data='{"key": "value"}'`
+
+2. **File-based context** with `--context` or `-c`:
+   * Specify a YAML file path containing context data
+   * Example: `--context data.yaml`
+
+If both methods are used, inline key-value pairs will override values from the context file.
 
 ## 4. API Usage
 

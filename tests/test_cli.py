@@ -304,3 +304,211 @@ def test_cli_streaming(mock_logger, mock_llm_client, mock_render, runner, stream
     
     assert result.exit_code == 0
     assert streaming_output in result.output 
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_with_key_value_pairs(mock_logger, mock_llm_client, mock_render, runner, template_file, monkeypatch):
+    """Test CLI with key-value pairs instead of context file."""
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Hello, Alice!"
+    mock_llm_client.return_value = client
+    
+    # Setup render mock to capture context
+    context_capture = {}
+    def mock_render_fn(template, context):
+        nonlocal context_capture
+        context_capture = context
+        return f"Hello, {context.get('name', 'Unknown')}!"
+    
+    mock_render.side_effect = mock_render_fn
+    
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        result = runner.invoke(main, [
+            template_path,
+            "name=Alice",
+            "age=30"
+        ], catch_exceptions=False)
+    
+    assert result.exit_code == 0
+    assert "Hello, Alice!" in result.output
+    assert context_capture == {"name": "Alice", "age": 30}
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_with_mixed_context_sources(mock_logger, mock_llm_client, mock_render, runner, template_file, tmp_path):
+    """Test CLI with both key-value pairs and context file."""
+    # Create a context file with some values
+    context_file = tmp_path / "mixed_context.yaml"
+    context_file.write_text("""
+    name: Bob
+    location: London
+    preferences:
+      color: blue
+    """)
+    
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Hello, Alice from Paris!"
+    mock_llm_client.return_value = client
+    
+    # Setup render mock to capture context
+    context_capture = {}
+    def mock_render_fn(template, context):
+        nonlocal context_capture
+        context_capture = context
+        return f"Hello, {context.get('name', 'Unknown')} from {context.get('location', 'Nowhere')}!"
+    
+    mock_render.side_effect = mock_render_fn
+    
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        context_path = os.path.join(os.getcwd(), "context.yaml")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        os.makedirs(os.path.dirname(context_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        with open(context_file, "rb") as f:
+            with open(context_path, "wb") as cf:
+                cf.write(f.read())
+        
+        # Key-value pairs should override context file values
+        result = runner.invoke(main, [
+            template_path,
+            "name=Alice",  # Override name from context file
+            "location=Paris",  # Override location from context file
+            "--context", context_path
+        ], catch_exceptions=False)
+    
+    assert result.exit_code == 0
+    assert "Hello, Alice from Paris!" in result.output
+    
+    # Verify that inline values overrode file values but other file values were preserved
+    assert context_capture["name"] == "Alice"  # Overridden by inline
+    assert context_capture["location"] == "Paris"  # Overridden by inline
+    assert "preferences" in context_capture  # Preserved from file
+    assert context_capture["preferences"]["color"] == "blue"  # Preserved from file
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_with_complex_key_values(mock_logger, mock_llm_client, mock_render, runner, template_file):
+    """Test CLI with complex YAML values in key-value pairs."""
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Result with complex values"
+    mock_llm_client.return_value = client
+    
+    # Setup render mock to capture context
+    context_capture = {}
+    def mock_render_fn(template, context):
+        nonlocal context_capture
+        context_capture = context
+        return "Result with complex values"
+    
+    mock_render.side_effect = mock_render_fn
+    
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        # Test with various YAML types
+        result = runner.invoke(main, [
+            template_path,
+            "string_value=hello",
+            "number_value=42",
+            "boolean_value=true",
+            "null_value=null",
+            "list_value=[1, 2, 3]",
+            "dict_value={'key': 'value', 'nested': {'data': 123}}"
+        ], catch_exceptions=False)
+    
+    assert result.exit_code == 0
+    
+    # Verify the complex values were parsed correctly
+    assert context_capture["string_value"] == "hello"
+    assert context_capture["number_value"] == 42
+    assert context_capture["boolean_value"] is True
+    assert context_capture["null_value"] is None
+    assert context_capture["list_value"] == [1, 2, 3]
+    assert context_capture["dict_value"] == {"key": "value", "nested": {"data": 123}}
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_with_no_context(mock_logger, mock_llm_client, mock_render, runner, template_file):
+    """Test CLI with no context provided at all."""
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Hello, Unknown!"
+    mock_llm_client.return_value = client
+    
+    # Setup render mock to verify empty context
+    context_capture = None
+    def mock_render_fn(template, context):
+        nonlocal context_capture
+        context_capture = context
+        return "Hello, Unknown!"
+    
+    mock_render.side_effect = mock_render_fn
+    
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        result = runner.invoke(main, [
+            template_path
+        ], catch_exceptions=False)
+    
+    assert result.exit_code == 0
+    assert "Hello, Unknown!" in result.output
+    assert context_capture == {}  # Empty dictionary for context
+
+def test_cli_with_invalid_key_value(runner, template_file):
+    """Test CLI with invalid key-value pair format."""
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        # Test with invalid key-value format (missing equals sign)
+        result = runner.invoke(main, [
+            template_path,
+            "invalid_format"
+        ])
+    
+    assert result.exit_code != 0
+    assert "Invalid key-value pair" in result.output 
