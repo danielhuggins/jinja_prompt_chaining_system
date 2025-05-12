@@ -292,14 +292,21 @@ Multi-line prompts:
 
 ```jinja
 {{ llmquery(
-    prompt="""Generate a list of 5 creative names for:
-    - A pet {{ animal_type }}
-    - That lives in {{ location }}
-    - With the personality: {{ personality }}
-    """,
+    prompt="Generate a list of 5 creative names for a pet " + animal_type + " that lives in " + location + " with the personality: " + personality,
     model="gpt-4o-mini",
     temperature=0.8
 ) }}
+```
+
+Alternatively, you can use the tag syntax for multi-line prompts:
+
+```jinja
+{% llmquery model="gpt-4o-mini" temperature=0.8 %}
+Generate a list of 5 creative names for:
+- A pet {{ animal_type }}
+- That lives in {{ location }}
+- With the personality: {{ personality }}
+{% endllmquery %}
 ```
 
 ### 7.3. Async Support
