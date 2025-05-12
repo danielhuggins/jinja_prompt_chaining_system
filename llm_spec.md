@@ -513,45 +513,61 @@ pytest -n auto
 
 The system supports relative includes in Jinja templates for more flexible and maintainable template organization.
 
-### 11.1. Syntax
+> **IMPORTANT**: The `{% include %}` tag should only be used for including Jinja template files (.jinja), not raw text or data files. When a file is included, its content is processed by the Jinja template engine. Don't use includes for text files or data unless you specifically want that content to be processed as a Jinja template. For raw text inclusion, use the file reference feature with the `@` symbol in CLI arguments or load file content programmatically in your context data.
+
+### 11.1. Syntax and Path Resolution
+
+The system uses the following rules to resolve include paths:
 
 ```jinja
-{% include './relative/path/to/template.jinja' %}
-{% include '../parent/directory/template.jinja' %}
+{% include './relative/path/to/template.jinja' %}   {# Relative to including template directory #}
+{% include '../parent/directory/template.jinja' %}  {# Relative to including template directory #}
+{% include 'non/relative/path.jinja' %}             {# Relative to current working directory #}
 ```
 
-* **Relative path**: Starts with `.` or `..` followed by a directory separator (`/`)
-* **Resolution**: Paths are resolved relative to the directory of the template that includes them, not the directory of the main template or the current working directory
+* **Template-relative paths**: Paths starting with `.` or `..` followed by a directory separator (`/`) are resolved relative to the directory of the including template.
+* **CWD-relative paths**: Paths not starting with `.` or `..` are first looked for relative to the current working directory, and then fall back to the template search path.
+* **Resolution order**:
+  1. For template-relative paths (starting with `.` or `..`): resolve relative to the directory of the including template
+  2. For other paths: first try to resolve relative to the current working directory
+  3. If not found in CWD, fall back to the template search path provided when creating the environment
 
 ### 11.2. Examples
 
 Given this directory structure:
 
 ```
-templates/
-├─ main.jinja
-├─ partials/
-│  ├─ header.jinja
-│  ├─ footer.jinja
-│  └─ sections/
-│     └─ content.jinja
-└─ shared/
-   └─ common.jinja
+/project/                                  # Current working directory
+├─ data.txt
+└─ templates/                              # Template search path
+   ├─ main.jinja
+   ├─ partials/
+   │  ├─ header.jinja
+   │  ├─ footer.jinja
+   │  └─ sections/
+   │     └─ content.jinja
+   └─ shared/
+      └─ common.jinja
 ```
 
-You can include templates like this:
+In this example, includes are resolved as follows:
 
 ```jinja
 {# In templates/main.jinja #}
-{% include 'partials/header.jinja' %}
-{% include 'partials/sections/content.jinja' %}
-{% include 'shared/common.jinja' %}
-{% include 'partials/footer.jinja' %}
+{% include 'partials/header.jinja' %}      {# First checks /project/partials/header.jinja, 
+                                              then falls back to templates/partials/header.jinja #}
+
+{% include 'data.txt' %}                   {# Loads /project/data.txt from CWD #}
 
 {# In templates/partials/sections/content.jinja #}
-{% include '../../shared/common.jinja' %}  {# Relative include, resolves to templates/shared/common.jinja #}
-{% include './subsection.jinja' %}  {# Relative include, resolves to templates/partials/sections/subsection.jinja #}
+{% include '../../shared/common.jinja' %}  {# Loads templates/shared/common.jinja #}
+{% include './subsection.jinja' %}         {# Loads templates/partials/sections/subsection.jinja #}
 ```
+
+This behavior allows:
+1. Direct access to files in the current working directory without explicit paths
+2. Access to files relative to the template being rendered
+3. Flexibility in organizing templates across multiple directories
 
 ### 11.3. Enhanced Error Messages
 
@@ -560,6 +576,7 @@ When a template include fails, the system provides detailed error messages with 
 ```
 Template 'non_existent.jinja' not found in search path: '/path/to/templates'
 Attempted paths:
+ - /absolute/path/to/current/working/directory/non_existent.jinja (from current working directory)
  - /absolute/path/to/templates/non_existent.jinja (from searchpath)
 ```
 
