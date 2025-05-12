@@ -1,0 +1,11 @@
+{% set first_story %}
+{% llmquery model="gpt-4o-mini" temperature=0.7 max_tokens=150 %}
+Generate a short story about a {{ animal }} that lives in {{ location }}.
+{% endllmquery %}
+{% endset %}
+
+{% llmquery model="gpt-4o-mini" temperature=0.7 max_tokens=200 %}
+Based on the following story, create 3 different possible endings:
+
+{{ first_story }}
+{% endllmquery %} 
