@@ -9,6 +9,9 @@ from jinja2 import Environment, FileSystemLoader, TemplateError
 from .parser import LLMQueryExtension
 from .logger import RunLogger
 from . import create_environment
+from pathlib import Path
+
+from .api import render_template_sync
 
 def parse_key_value_arg(arg: str) -> tuple:
     """Parse a key=value argument into a tuple of (key, parsed_value).

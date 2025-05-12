@@ -13,12 +13,13 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from .parser import LLMQueryExtension
 from .logger import RunLogger
+from .utils import RelativePathFileSystemLoader
 
 def create_environment(template_path=None) -> Environment:
     """Create a Jinja environment with the LLMQuery extension registered."""
     # Create environment with basic settings
     env = Environment(
-        loader=FileSystemLoader(template_path) if template_path else None,
+        loader=RelativePathFileSystemLoader(template_path) if template_path else None,
         enable_async=True,  # Enable async support for potential future use
         extensions=[LLMQueryExtension],
         autoescape=False  # Disable HTML escaping by default

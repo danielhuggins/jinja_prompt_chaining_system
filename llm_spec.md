@@ -32,6 +32,11 @@
    * Support both synchronous and asynchronous rendering
    * Accept both file paths and Python dictionaries for context data
    * Maintain the same logging and output capabilities as the CLI
+9. Support relative includes:
+   * Treat includes beginning with './' or '../' as relative to the including template's directory
+   * Maintain backward compatibility with standard Jinja includes
+   * Enable more flexible template organization with nested directory structures
+   * Allow template reuse with proper path resolution regardless of the invocation directory
 
 ## 2. Project Structure
 
@@ -503,3 +508,71 @@ pytest -n auto
 
 * **Publish** `jinja_prompt_chaining_system` wheel to PyPI.
 * **Docs** (optional) via MkDocs.
+
+## 11. Relative Includes
+
+The system supports relative includes in Jinja templates for more flexible and maintainable template organization.
+
+### 11.1. Syntax
+
+```jinja
+{% include './relative/path/to/template.jinja' %}
+{% include '../parent/directory/template.jinja' %}
+```
+
+* **Relative path**: Starts with `.` or `..` followed by a directory separator (`/`)
+* **Resolution**: Paths are resolved relative to the directory of the template that includes them, not the directory of the main template or the current working directory
+
+### 11.2. Examples
+
+Given this directory structure:
+
+```
+templates/
+├─ main.jinja
+├─ partials/
+│  ├─ header.jinja
+│  ├─ footer.jinja
+│  └─ sections/
+│     └─ content.jinja
+└─ shared/
+   └─ common.jinja
+```
+
+**Example 1**: From `main.jinja` including a template in a subdirectory:
+
+```jinja
+{% include 'partials/header.jinja' %}           {# Standard include #}
+{% include './partials/header.jinja' %}         {# Equivalent relative include #}
+
+{% llmquery model="gpt-4" %}
+Content with included section:
+{% include './partials/sections/content.jinja' %}
+{% endllmquery %}
+```
+
+**Example 2**: From `partials/sections/content.jinja` including a template in a parent directory:
+
+```jinja
+Here is the main content.
+
+{% include '../footer.jinja' %}                 {# Include from same directory as header.jinja #}
+{% include '../../shared/common.jinja' %}       {# Include from templates/shared/ directory #}
+```
+
+### 11.3. Benefits
+
+1. **Portability**: Templates can be moved together with their dependencies without breaking include paths
+2. **Clarity**: Path relationships between templates are explicit in the include statements
+3. **Modularity**: Templates can be organized in subdirectories and included from anywhere using relative paths
+4. **Maintenance**: Directory restructuring is easier as related templates maintain their relative relationships
+5. **Isolation**: Template modules can be developed independently in their own directories
+
+### 11.4. Implementation Details
+
+The relative include system uses a custom Jinja `FileSystemLoader` that:
+
+1. Detects includes starting with `.` or `..` 
+2. Resolves the path relative to the including template's directory
+3. Falls back to standard Jinja include behavior for non-relative paths
+4. Maintains full compatibility with existing templates
