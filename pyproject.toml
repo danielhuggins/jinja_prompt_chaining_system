@@ -35,6 +35,6 @@ jinja-run = "jinja_prompt_chaining_system.cli:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -n auto"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function" 
