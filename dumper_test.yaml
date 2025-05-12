@@ -1,0 +1,14 @@
+request:
+  model: gpt-4o-mini
+  messages:
+  - role: user
+    content: This is a simple one-line content field.
+  - role: assistant
+    content: 'This is a very long line that would normally get broken up with line
+      continuation markers that would normally get broken up with line continuation
+      markers that would normally get broken up with line continuation markers '
+  - role: system
+    content: |-
+      Line 1
+      Line 2
+      Line 3

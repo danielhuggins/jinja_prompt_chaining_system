@@ -4,7 +4,8 @@ import yaml
 from pathlib import Path
 import pytest
 
-from jinja_prompt_chaining_system.logger import LLMLogger
+from jinja_prompt_chaining_system.logger import LLMLogger, preprocess_yaml_data
+from tests.logger.test_logger import load_yaml_for_testing
 
 
 def test_content_format_streaming():
@@ -54,7 +55,10 @@ def test_content_format_streaming():
         
         # Read the log file
         with open(log_path, 'r') as f:
-            log_data = yaml.safe_load(f)
+            raw_content = f.read()  # Keep this for checking formatting
+            
+        # Use our test-specific loader to strip newlines
+        log_data = load_yaml_for_testing(log_path)
         
         # Verify that the content is in the correct format
         assert "response" in log_data
@@ -70,15 +74,11 @@ def test_content_format_streaming():
         expected_content = "Line 1\nLine 2\nLine 3"
         assert log_data["response"]["choices"][0]["message"]["content"] == expected_content
         
-        # Now, re-read the file as text to verify it uses the literal block format (|)
-        with open(log_path, 'r') as f:
-            log_text = f.read()
-        
-        # Check that the content is formatted with a pipe (|)
-        assert "content: |" in log_text or "content: >\n" in log_text, "Content should use literal block format (|)"
+        # Now, check that the raw file uses the literal block format (|)
+        assert "content: |" in raw_content or "content: >\n" in raw_content, "Content should use literal block format (|)"
         
         # Content should not have escape sequences
-        assert "\\n" not in log_text, "Content should not contain escape sequences"
+        assert "\\n" not in raw_content, "Content should not contain escape sequences"
 
 
 def test_content_format_non_streaming():
@@ -121,7 +121,10 @@ def test_content_format_non_streaming():
         
         # Read the log file
         with open(log_path, 'r') as f:
-            log_data = yaml.safe_load(f)
+            raw_content = f.read()  # Keep this for checking formatting
+            
+        # Use our test-specific loader to strip newlines
+        log_data = load_yaml_for_testing(log_path)
         
         # Verify that the content is in the correct format
         assert "response" in log_data
@@ -134,12 +137,8 @@ def test_content_format_non_streaming():
         expected_content = "Line 1\nLine 2\nLine 3"
         assert log_data["response"]["choices"][0]["message"]["content"] == expected_content
         
-        # Now, re-read the file as text to verify it uses the literal block format (|)
-        with open(log_path, 'r') as f:
-            log_text = f.read()
-        
-        # Check that the content is formatted with a pipe (|)
-        assert "content: |" in log_text or "content: >\n" in log_text, "Content should use literal block format (|)"
+        # Now, check that the raw file uses the literal block format (|)
+        assert "content: |" in raw_content or "content: >\n" in raw_content, "Content should use literal block format (|)"
         
         # Content should not have escape sequences
-        assert "\\n" not in log_text, "Content should not contain escape sequences" 
+        assert "\\n" not in raw_content, "Content should not contain escape sequences" 
