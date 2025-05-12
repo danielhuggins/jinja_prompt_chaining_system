@@ -539,40 +539,37 @@ templates/
    └─ common.jinja
 ```
 
-**Example 1**: From `main.jinja` including a template in a subdirectory:
+You can include templates like this:
 
 ```jinja
-{% include 'partials/header.jinja' %}           {# Standard include #}
-{% include './partials/header.jinja' %}         {# Equivalent relative include #}
+{# In templates/main.jinja #}
+{% include 'partials/header.jinja' %}
+{% include 'partials/sections/content.jinja' %}
+{% include 'shared/common.jinja' %}
+{% include 'partials/footer.jinja' %}
 
-{% llmquery model="gpt-4" %}
-Content with included section:
-{% include './partials/sections/content.jinja' %}
-{% endllmquery %}
+{# In templates/partials/sections/content.jinja #}
+{% include '../../shared/common.jinja' %}  {# Relative include, resolves to templates/shared/common.jinja #}
+{% include './subsection.jinja' %}  {# Relative include, resolves to templates/partials/sections/subsection.jinja #}
 ```
 
-**Example 2**: From `partials/sections/content.jinja` including a template in a parent directory:
+### 11.3. Enhanced Error Messages
 
-```jinja
-Here is the main content.
+When a template include fails, the system provides detailed error messages with absolute paths to help diagnose the issue:
 
-{% include '../footer.jinja' %}                 {# Include from same directory as header.jinja #}
-{% include '../../shared/common.jinja' %}       {# Include from templates/shared/ directory #}
+```
+Template 'non_existent.jinja' not found in search path: '/path/to/templates'
+Attempted paths:
+ - /absolute/path/to/templates/non_existent.jinja (from searchpath)
 ```
 
-### 11.3. Benefits
+For relative includes, the error message shows both the original relative path and the resolved absolute path:
 
-1. **Portability**: Templates can be moved together with their dependencies without breaking include paths
-2. **Clarity**: Path relationships between templates are explicit in the include statements
-3. **Modularity**: Templates can be organized in subdirectories and included from anywhere using relative paths
-4. **Maintenance**: Directory restructuring is easier as related templates maintain their relative relationships
-5. **Isolation**: Template modules can be developed independently in their own directories
+```
+Template '../non_existent.jinja' not found in search path: '/path/to/templates/nested'
+Attempted paths:
+ - /absolute/path/to/templates/non_existent.jinja (relative to /path/to/templates/nested/current.jinja)
+ - /absolute/path/to/templates/nested/../non_existent.jinja (from searchpath, treating relative as absolute)
+```
 
-### 11.4. Implementation Details
-
-The relative include system uses a custom Jinja `FileSystemLoader` that:
-
-1. Detects includes starting with `.` or `..` 
-2. Resolves the path relative to the including template's directory
-3. Falls back to standard Jinja include behavior for non-relative paths
-4. Maintains full compatibility with existing templates
+For multiple levels of includes, the error messages show the full chain of attempted lookups.

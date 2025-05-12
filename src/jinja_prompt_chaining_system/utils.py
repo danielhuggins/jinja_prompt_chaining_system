@@ -2,9 +2,89 @@
 
 import os
 import re
+import posixpath
 from typing import List, Optional, Union, Tuple, Dict, Any
 from pathlib import Path
 from jinja2 import FileSystemLoader, TemplateNotFound, Template
+
+def split_template_path(template):
+    """
+    Split a template path into segments.
+    
+    This function replicates Jinja2's internal path splitting logic for templates,
+    with improved handling for Windows paths and special characters.
+    
+    Args:
+        template: The template path to split
+        
+    Returns:
+        A list of path segments
+    """
+    # Special case handling for relative paths
+    if template.startswith('./'):
+        normalized_path = template[2:]  # Remove the leading ./
+        segments = [part for part in normalized_path.split('/') if part]
+        segments.insert(0, '.')
+        return segments
+    
+    elif template.startswith('../'):
+        # Count how many ../s we have at the beginning
+        count = 0
+        i = 0
+        while template[i:i+3] == '../':
+            count += 1
+            i += 3
+        
+        # The rest of the path without the leading ../s
+        normalized_path = template[count*3:]
+        segments = [part for part in normalized_path.split('/') if part]
+        
+        # Add the ..s at the beginning
+        for _ in range(count):
+            segments.insert(0, '..')
+        
+        return segments
+    
+    # Normalize path separators to POSIX style (forward slashes)
+    normalized_path = template.replace('\\', '/')
+    
+    # Split by forward slashes and filter out empty segments
+    segments = [part for part in normalized_path.split('/') if part]
+    
+    return segments
+
+class EnhancedTemplateNotFound(TemplateNotFound):
+    """
+    Enhanced version of TemplateNotFound that includes additional context about attempted paths.
+    
+    This exception provides more detailed information about where the system looked for templates,
+    including absolute paths and relative paths from different bases.
+    """
+    
+    def __init__(self, name, message=None, attempted_paths=None):
+        """
+        Initialize the exception with more context information.
+        
+        Args:
+            name: The template name that was not found
+            message: Optional message override
+            attempted_paths: List of absolute paths that were checked
+        """
+        self.attempted_paths = attempted_paths or []
+        
+        # Build a detailed error message with all attempted paths
+        if not message:
+            message = f"Template {name!r} not found."
+            
+        if self.attempted_paths:
+            paths_str = "\n - " + "\n - ".join(self.attempted_paths)
+            message += f"\nAttempted paths:{paths_str}"
+                
+        super().__init__(name, message)
+        
+        # Ensure the message is also available in the Exception superclass
+        self.args = (name, message)
+
 
 class RelativePathFileSystemLoader(FileSystemLoader):
     """
@@ -53,17 +133,22 @@ class RelativePathFileSystemLoader(FileSystemLoader):
             A tuple of (source, filename, uptodate_func)
             
         Raises:
-            TemplateNotFound: If the template cannot be found
+            EnhancedTemplateNotFound: If the template cannot be found, with detailed path information
         """
+        # Track all attempted paths for better error messages
+        attempted_paths = []
+        
         # Check if this is a relative include (starts with ./ or ../)
         is_relative = template.startswith('./') or template.startswith('../')
         
         if is_relative and self._last_loaded_template and self._last_loaded_template in self._template_dirs:
             # Get the directory of the including template
             parent_dir = self._template_dirs.get(self._last_loaded_template)
+            including_template = self._last_loaded_template
             
             # Resolve path relative to the current template directory
-            resolved_path = os.path.normpath(os.path.join(parent_dir, template))
+            resolved_path = os.path.abspath(os.path.normpath(os.path.join(parent_dir, template)))
+            attempted_paths.append(f"{resolved_path} (relative to {including_template})")
             
             # Try to load the template from this resolved path
             try:
@@ -75,7 +160,6 @@ class RelativePathFileSystemLoader(FileSystemLoader):
                 self._template_dirs[resolved_path] = template_dir
                 
                 # Set this as the last loaded template
-                previous_template = self._last_loaded_template
                 self._last_loaded_template = resolved_path
                 
                 # Prepare the uptodate function
@@ -91,18 +175,43 @@ class RelativePathFileSystemLoader(FileSystemLoader):
                 # If we can't load the relative path, continue to try standard loading
                 pass
         
-        # If not a relative include or if relative include failed, 
-        # try standard FileSystemLoader behavior
-        source, filename, uptodate = super().get_source(environment, template)
-        
-        # Store the directory of this template for future relative includes
-        template_dir = os.path.dirname(filename)
-        self._template_dirs[filename] = template_dir
-        
-        # Set this as the last loaded template
-        self._last_loaded_template = filename
-        
-        return source, filename, uptodate
+        # Try the standard approach, but catch and enhance any errors
+        try:
+            # Use the parent's get_source method to find the template
+            source, filename, uptodate = super().get_source(environment, template)
+            
+            # Store the directory of this template for future relative includes
+            template_dir = os.path.dirname(filename)
+            self._template_dirs[filename] = template_dir
+            
+            # Set this as the last loaded template
+            self._last_loaded_template = filename
+            
+            return source, filename, uptodate
+        except TemplateNotFound as e:
+            # If we get here, the template was not found
+            # Collect all the paths we tried for better error messages
+            for searchpath in self.searchpath:
+                if is_relative:
+                    # For relative includes, we also show the direct path
+                    direct_path = os.path.join(searchpath, template)
+                    attempted_paths.append(f"{os.path.abspath(direct_path)} (from searchpath, treating relative as absolute)")
+                else:
+                    # For standard includes, collect the full resolved path
+                    pieces = split_template_path(template)
+                    resolved_path = os.path.join(searchpath, *pieces)
+                    attempted_paths.append(f"{os.path.abspath(resolved_path)} (from searchpath)")
+            
+            # Create a more detailed error message
+            plural = "path" if len(self.searchpath) == 1 else "paths"
+            paths_str = ", ".join(repr(p) for p in self.searchpath)
+            
+            # Raise with enhanced error information
+            raise EnhancedTemplateNotFound(
+                template,
+                f"{template!r} not found in search {plural}: {paths_str}",
+                attempted_paths
+            ) from e
     
     def load(self, environment, name, globals=None):
         """
@@ -115,14 +224,31 @@ class RelativePathFileSystemLoader(FileSystemLoader):
             
         Returns:
             The loaded template
+            
+        Raises:
+            EnhancedTemplateNotFound: If the template cannot be found
         """
         # Save the current last loaded template
         previous_template = self._last_loaded_template
         
         try:
-            # Load the template
-            template = super().load(environment, name, globals)
-            return template
-        finally:
-            # No need to restore previous template here as get_source will set it correctly
-            pass 
+            # Use the original FileSystemLoader's load method to avoid compatibility issues
+            return super().load(environment, name, globals)
+        except TemplateNotFound as e:
+            # Convert standard TemplateNotFound to our enhanced version
+            if not isinstance(e, EnhancedTemplateNotFound):
+                # Get the attempted paths if available
+                attempted_paths = getattr(e, 'attempted_paths', [])
+                # Add absolute path information
+                if not attempted_paths:
+                    for searchpath in self.searchpath:
+                        path = os.path.join(searchpath, name)
+                        attempted_paths.append(f"{os.path.abspath(path)} (from searchpath)")
+                
+                # Create enhanced error with absolute path information
+                raise EnhancedTemplateNotFound(
+                    name, 
+                    f"Template {name!r} not found with absolute paths",
+                    attempted_paths
+                ) from e
+            raise 
