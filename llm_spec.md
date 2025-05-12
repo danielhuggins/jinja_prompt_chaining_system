@@ -67,17 +67,43 @@ jinja-run path/to/template.jinja \
 
 The CLI supports two methods for providing context data:
 
-1. **Inline context** as key-value pairs (must come before other options):
+1. **Inline context** as key-value pairs (must come before any options):
    * Specify key-value pairs directly on the command line
-   * Example: `name=World model=gpt-4o-mini temperature=0.7`
+   * Example: `name=Alice age=30 location=London`
    * Values are parsed as YAML (strings, numbers, booleans, etc.)
-   * Complex values should be quoted: `data='{"key": "value"}'`
+   * Complex values should be quoted: `preferences='{"color": "blue"}'`
+   * File references: Use `@file.txt` to load file contents: `message=@input.txt`
 
 2. **File-based context** with `--context` or `-c`:
    * Specify a YAML file path containing context data
    * Example: `--context data.yaml`
 
 If both methods are used, inline key-value pairs will override values from the context file.
+
+### 3.1 File References in Key-Value Pairs
+
+When a value in a key-value pair starts with "@", it's treated as a file reference. The system reads the content of the specified file and uses it as the value.
+
+For example:
+```bash
+jinja-run template.jinja message=@input.txt
+```
+
+This loads the content of "input.txt" and assigns it to the "message" variable in the template context.
+
+This is particularly useful for:
+* Long text content that would be unwieldy on the command line
+* Pre-written content you want to reuse
+* Multiline text that would be difficult to quote properly on the command line
+
+The file path is relative to the current working directory. Both absolute and relative paths are supported:
+```bash
+# Relative path
+jinja-run template.jinja message=@inputs/message.txt
+
+# Absolute path
+jinja-run template.jinja message=@/path/to/inputs/message.txt
+```
 
 ## 4. API Usage
 

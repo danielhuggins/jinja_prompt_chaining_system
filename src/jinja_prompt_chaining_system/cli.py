@@ -11,11 +11,28 @@ from .logger import RunLogger
 from . import create_environment
 
 def parse_key_value_arg(arg: str) -> tuple:
-    """Parse a key=value argument into a tuple of (key, parsed_value)."""
+    """Parse a key=value argument into a tuple of (key, parsed_value).
+    
+    Special features:
+    - Values starting with @ are treated as file references and the value becomes
+      the content of the referenced file.
+    - Other values are parsed as YAML.
+    """
     if '=' not in arg:
         raise ValueError(f"Invalid key-value pair: {arg}. Format should be key=value")
     
     key, value_str = arg.split('=', 1)
+    
+    # Check if this is a file reference
+    if value_str.startswith('@') and not (value_str.startswith("'@") or value_str.startswith('"@')):
+        file_path = value_str[1:]  # Remove the @ symbol
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return key, f.read()
+        except (IOError, FileNotFoundError) as e:
+            raise IOError(f"Error reading file referenced by {key}=@{file_path}: {str(e)}")
+    
+    # Not a file reference, parse as YAML
     try:
         # Parse the value as YAML to handle different data types
         parsed_value = yaml.safe_load(value_str)
@@ -47,12 +64,13 @@ def main(template: str, context: Optional[str], out: Optional[str], logdir: Opti
     
     KEY_VALUE_PAIRS: Optional key=value pairs for template context.
     These must come before any options and will override values from the context file.
-    Values are parsed as YAML (e.g., name=World, count=42, flag=true).
+    Values are parsed as YAML (e.g., name=Alice, age=30, active=true).
+    File references like message=@input.txt will load file contents as values.
     
     Examples:
       jinja-run template.jinja --context data.yaml
-      jinja-run template.jinja name=World model=gpt-4o-mini --out result.txt
-      jinja-run template.jinja name=World --context data.yaml --logdir logs/
+      jinja-run template.jinja name=Alice age=30 --out result.txt
+      jinja-run template.jinja message=@input.txt --logdir logs/
     """
     # Check for incompatible flags
     if verbose and quiet:
@@ -73,12 +91,20 @@ def main(template: str, context: Optional[str], out: Optional[str], logdir: Opti
                 try:
                     key, value = parse_key_value_arg(kv_pair)
                     ctx[key] = value
-                    verbose_echo(f"Added context: {key}={value}")
+                    # For file references, show a more helpful message
+                    if kv_pair.startswith(f"{key}=@") and not (
+                        kv_pair.startswith(f"{key}='@") or kv_pair.startswith(f'{key}="@')):
+                        verbose_echo(f"Added context from file: {key}=@{kv_pair.split('=@', 1)[1]}")
+                    else:
+                        verbose_echo(f"Added context: {key}={value}")
                 except ValueError as e:
                     click.echo(f"Error: {str(e)}", err=True)
                     sys.exit(1)
                 except yaml.YAMLError as e:
                     click.echo(f"Error: Invalid YAML in value for {kv_pair}: {str(e)}", err=True)
+                    sys.exit(1)
+                except IOError as e:
+                    click.echo(f"Error: {str(e)}", err=True)
                     sys.exit(1)
         
         # Load context file if provided and merge with inline pairs

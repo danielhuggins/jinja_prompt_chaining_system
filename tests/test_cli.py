@@ -512,3 +512,172 @@ def test_cli_with_invalid_key_value(runner, template_file):
     
     assert result.exit_code != 0
     assert "Invalid key-value pair" in result.output 
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_with_file_reference(mock_logger, mock_llm_client, mock_render, runner, template_file, tmp_path):
+    """Test CLI with @ file reference in key-value pairs."""
+    # Create a file to reference
+    reference_file = tmp_path / "prompt.txt"
+    reference_file.write_text("This is content from a file!")
+    
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Response using file content"
+    mock_llm_client.return_value = client
+    
+    # Setup render mock to capture context
+    context_capture = {}
+    def mock_render_fn(template, context):
+        nonlocal context_capture
+        context_capture = context
+        return f"Template rendered with: {context.get('message', 'None')}"
+    
+    mock_render.side_effect = mock_render_fn
+    
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        ref_file_path = os.path.join(os.getcwd(), "prompt.txt")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        with open(reference_file, "rb") as f:
+            with open(ref_file_path, "wb") as rf:
+                rf.write(f.read())
+        
+        # Test with file reference
+        result = runner.invoke(main, [
+            template_path,
+            f"message=@{ref_file_path}"
+        ], catch_exceptions=False)
+    
+    assert result.exit_code == 0
+    assert "Template rendered with: This is content from a file!" in result.output
+    assert context_capture["message"] == "This is content from a file!"
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_with_missing_file_reference(mock_logger, mock_llm_client, mock_render, runner, template_file):
+    """Test CLI with missing @ file reference."""
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        nonexistent_file = os.path.join(os.getcwd(), "nonexistent.txt")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        # Test with nonexistent file reference
+        result = runner.invoke(main, [
+            template_path,
+            f"message=@{nonexistent_file}"
+        ])
+    
+    assert result.exit_code != 0
+    assert "Error" in result.output
+    assert "No such file" in result.output or "Cannot find" in result.output
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_with_multiple_file_references(mock_logger, mock_llm_client, mock_render, runner, template_file, tmp_path):
+    """Test CLI with multiple @ file references."""
+    # Create files to reference
+    file1 = tmp_path / "prompt1.txt"
+    file1.write_text("Content from file 1")
+    
+    file2 = tmp_path / "prompt2.txt"
+    file2.write_text("Content from file 2")
+    
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Response using file content"
+    mock_llm_client.return_value = client
+    
+    # Setup render mock to capture context
+    context_capture = {}
+    def mock_render_fn(template, context):
+        nonlocal context_capture
+        context_capture = context
+        return "Template rendered with multiple file references"
+    
+    mock_render.side_effect = mock_render_fn
+    
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        file1_path = os.path.join(os.getcwd(), "prompt1.txt")
+        file2_path = os.path.join(os.getcwd(), "prompt2.txt")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        with open(file1, "rb") as f:
+            with open(file1_path, "wb") as rf:
+                rf.write(f.read())
+        
+        with open(file2, "rb") as f:
+            with open(file2_path, "wb") as rf:
+                rf.write(f.read())
+        
+        # Test with multiple file references
+        result = runner.invoke(main, [
+            template_path,
+            f"message1=@{file1_path}",
+            f"message2=@{file2_path}"
+        ], catch_exceptions=False)
+    
+    assert result.exit_code == 0
+    assert context_capture["message1"] == "Content from file 1"
+    assert context_capture["message2"] == "Content from file 2"
+
+@patch('jinja_prompt_chaining_system.cli.render_template_sync')
+@patch('jinja_prompt_chaining_system.parser.LLMClient')
+@patch('jinja_prompt_chaining_system.parser.LLMLogger')
+def test_cli_literal_at_symbol(mock_logger, mock_llm_client, mock_render, runner, template_file):
+    """Test CLI with literal @ symbol (not a file reference)."""
+    # Setup mocks
+    client = Mock()
+    client.query.return_value = "Response with literal @ symbol"
+    mock_llm_client.return_value = client
+    
+    # Setup render mock to capture context
+    context_capture = {}
+    def mock_render_fn(template, context):
+        nonlocal context_capture
+        context_capture = context
+        return "Template rendered with literal @ symbol"
+    
+    mock_render.side_effect = mock_render_fn
+    
+    with runner.isolated_filesystem():
+        template_path = os.path.join(os.getcwd(), "test.jinja")
+        
+        # Copy files to isolated filesystem
+        os.makedirs(os.path.dirname(template_path), exist_ok=True)
+        
+        with open(template_file, "rb") as f:
+            with open(template_path, "wb") as tf:
+                tf.write(f.read())
+        
+        # Test with quoted @ symbol (should be treated as literal, not file reference)
+        result = runner.invoke(main, [
+            template_path,
+            "email='user@example.com'"
+        ], catch_exceptions=False)
+    
+    assert result.exit_code == 0
+    assert context_capture["email"] == "user@example.com" 
